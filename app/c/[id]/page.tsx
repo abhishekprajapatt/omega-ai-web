@@ -8,7 +8,14 @@ import { ChevronDown } from 'lucide-react';
 import { useParams } from 'next/navigation';
 import PromptBox from '@/components/PromptBox';
 import { useAppContext } from '@/context/AppContext';
-import { useEffect, useRef, useState, MouseEvent, FormEvent } from 'react';
+import {
+  useEffect,
+  useRef,
+  useState,
+  MouseEvent,
+  FormEvent,
+  useCallback,
+} from 'react';
 
 interface MessageType {
   _id?: string;
@@ -69,16 +76,12 @@ const ChatPage: React.FC = () => {
 
   useEffect(() => {
     if (!chatId || !chats || chats.length === 0) return;
-
-    if (selectedChat && selectedChat._id === chatId) {
-      return;
-    }
-
+    if (selectedChat && selectedChat._id === chatId) return;
     const chat = chats.find((c) => c._id === chatId);
     if (chat) {
       setSelectedChat(chat);
     }
-  }, [chatId]);
+  }, [chatId, chats, selectedChat, setSelectedChat]);
 
   useEffect(() => {
     if (containerRef.current) {
@@ -89,7 +92,7 @@ const ChatPage: React.FC = () => {
     }
   }, [selectedChat?.messages]);
 
-  const getGreeting = (): string => {
+  const getGreeting = useCallback((): string => {
     const now = new Date();
     const hours = now.getHours();
 
@@ -102,15 +105,25 @@ const ChatPage: React.FC = () => {
     } else {
       return 'Good night 🌙';
     }
-  };
+  }, []);
 
   useEffect(() => {
     setGreeting(getGreeting());
-  }, []);
+  }, [getGreeting]);
+
+
+  useEffect(() => {
+    if (containerRef.current) {
+      containerRef.current.scrollTo({
+        top: containerRef.current.scrollHeight,
+        behavior: 'smooth',
+      });
+    }
+  }, [selectedChat]);
 
   const handleToggleExpand = (e: MouseEvent<HTMLImageElement>): void => {
     e.stopPropagation();
-    setExpand(!expand);
+    setExpand((prev) => !prev);
   };
 
   return (

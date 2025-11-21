@@ -6,6 +6,7 @@ import React, {
   KeyboardEvent,
   FormEvent,
   MouseEvent,
+  useCallback,
 } from 'react';
 import { mirage } from 'ldrs';
 import Image from 'next/image';
@@ -106,58 +107,66 @@ const PromptBox: React.FC = () => {
     };
   }, [isModelOpen]);
 
-  const handlePromptChange = (e: ChangeEvent<HTMLTextAreaElement>): void => {
-    setPrompt(e.target.value);
-  };
+  const handlePromptChange = useCallback(
+    (e: ChangeEvent<HTMLTextAreaElement>): void => {
+      setPrompt(e.target.value);
+    },
+    []
+  );
 
-  const handleImageUpload = (e: ChangeEvent<HTMLInputElement>): void => {
-    const files = e.target.files;
-    if (!files) return;
+  const handleImageUpload = useCallback(
+    (e: ChangeEvent<HTMLInputElement>): void => {
+      const files = e.target.files;
+      if (!files) return;
 
-    Array.from(files).forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const base64String = event.target?.result as string;
-        setUploadedImages((prev) => [...prev, base64String]);
-      };
-      reader.readAsDataURL(file);
-    });
+      Array.from(files).forEach((file) => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const base64String = event.target?.result as string;
+          setUploadedImages((prev) => [...prev, base64String]);
+        };
+        reader.readAsDataURL(file);
+      });
 
-    if (e.target) e.target.value = '';
-  };
+      if (e.target) e.target.value = '';
+    },
+    []
+  );
 
   const removeImage = (index: number): void => {
     setUploadedImages((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>): void => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSendPrompt(e as any);
-    }
-  };
+  const handleSendPrompt = useCallback(
+    (e?: FormEvent<HTMLFormElement> | MouseEvent): void => {
+      if (e) e.preventDefault();
+      if (!prompt.trim() && uploadedImages.length === 0) return;
 
-  const handleSendPrompt = (
-    e?: FormEvent<HTMLFormElement> | MouseEvent
-  ): void => {
-    if (e) e.preventDefault();
-    if (!prompt.trim() && uploadedImages.length === 0) return;
+      const data = {
+        prompt,
+        images: uploadedImages,
+      };
 
-    const data = {
-      prompt,
-      images: uploadedImages,
-    };
+      sendPrompt(e as any, JSON.stringify(data));
+      setPrompt('');
+      setUploadedImages([]);
+    },
+    [prompt, uploadedImages, sendPrompt]
+  );
 
-    sendPrompt(e as any, JSON.stringify(data));
-    setPrompt('');
-    setUploadedImages([]);
-  };
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent<HTMLTextAreaElement>): void => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        handleSendPrompt(e as any);
+      }
+    },
+    [handleSendPrompt]
+  );
 
-  const handleToggleContinuousListening = (): void => {
+  const handleToggleContinuousListening = useCallback((): void => {
     toggleContinuousListeningContext();
-  };
-
-  useEffect(() => {}, []);
+  }, [toggleContinuousListeningContext]);
 
   useEffect(() => {
     if (!isClient) return;
@@ -223,7 +232,7 @@ const PromptBox: React.FC = () => {
         <div className="mt-3 flex flex-wrap gap-2">
           {uploadedImages.map((img, idx) => (
             <div key={idx} className="relative">
-              <img
+              <Image
                 src={img}
                 alt="preview"
                 className="w-20 h-20 rounded-lg object-cover border border-white/20"

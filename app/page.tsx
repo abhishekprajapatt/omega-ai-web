@@ -5,7 +5,14 @@ import { useClerk } from '@clerk/nextjs';
 import Sidebar from '@/components/Sidebar';
 import PromptBox from '@/components/PromptBox';
 import { useAppContext } from '@/context/AppContext';
-import { useEffect, useRef, useState, MouseEvent, FormEvent } from 'react';
+import {
+  useEffect,
+  useRef,
+  useState,
+  MouseEvent,
+  FormEvent,
+  useCallback,
+} from 'react';
 
 interface MessageType {
   _id?: string;
@@ -64,7 +71,7 @@ const Home: React.FC = () => {
     if (selectedChat !== null) {
       setSelectedChat(null);
     }
-  }, []);
+  }, [selectedChat, setSelectedChat]);
 
   useEffect(() => {
     if (containerRef.current) {
@@ -75,7 +82,7 @@ const Home: React.FC = () => {
     }
   }, [selectedChat?.messages]);
 
-  const getGreeting = (): string => {
+  const getGreeting = useCallback((): string => {
     const now = new Date();
     const hours = now.getHours();
 
@@ -136,9 +143,9 @@ const Home: React.FC = () => {
 
     const randomIndex = Math.floor(Math.random() * greetings.length);
     return greetings[randomIndex];
-  };
+  }, []);
 
-  const getWelcomeMessage = (): string => {
+  const getWelcomeMessage = useCallback((): string => {
     const userWelcomes = [
       "Welcome, {name}! Let's elevate your ideas. 🚀",
       'Hey {name}! Ready to build something amazing? 💡',
@@ -170,16 +177,29 @@ const Home: React.FC = () => {
     }
 
     return message;
-  };
+  }, [user]);
 
   useEffect(() => {
     setGreeting(getGreeting());
     setWelcomeMessage(getWelcomeMessage());
-  }, [user]);
+  }, [user, getGreeting, getWelcomeMessage]);
+
+  useEffect(() => {
+    setSelectedChat(null);
+  }, [setSelectedChat]);
+
+  useEffect(() => {
+    if (containerRef.current) {
+      containerRef.current.scrollTo({
+        top: containerRef.current.scrollHeight,
+        behavior: 'smooth',
+      });
+    }
+  }, [selectedChat]);
 
   const handleToggleExpand = (e: MouseEvent<HTMLImageElement>): void => {
     e.stopPropagation();
-    setExpand(!expand);
+    setExpand((prev) => !prev);
   };
 
   return (
