@@ -178,7 +178,7 @@ const ChatPage: React.FC = () => {
               >
                 <div
                   className={`fixed top-4 flex gap-2 ${
-                    expand ? 'left-72' : 'left-20'
+                    expand ? 'hidden md:left-72' : 'left-20'
                   } border border-transparent hover:border-gray-500/50 py-1 px-2 rounded-lg font-semibold mb-6 text-sm z-10 hover:bg-[#292a2d] bg-opacity-90`}
                 >
                   {selectedChat.name}{' '}

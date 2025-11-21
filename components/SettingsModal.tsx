@@ -174,7 +174,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
 
         <div className="flex h-full">
           {/* Sidebar Tabs */}
-          <div className="w-48 p-4 flex flex-col gap-2">
+          <div className="px-2 md:w-48 md:p-4 flex flex-col gap-2">
             <button
               onClick={() => setActiveTab('general')}
               className={`flex items-center gap-3 px-4 py-3 rounded-xl transition ${
@@ -247,7 +247,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
             {/* General Tab */}
             {activeTab === 'general' && (
               <div className="space-y-4">
-                <h3 className="text-lg font-head font-semibold text-white mb-4">
+                <h3 className="text-md md:text-lg font-head font-semibold text-white mb-4">
                   {getTranslation(detectedLang, 'generalSettings')}
                 </h3>
                 <div className="space-y-3">
@@ -261,7 +261,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                       className="w-5 h-5 rounded cursor-pointer"
                     />
                   </label>
-                  <p className="text-sm font-head text-white/60">
+                  <p className="text-xs md:text-sm font-head text-white/60">
                     {getTranslation(detectedLang, 'improveModelDesc')}
                   </p>
                 </div>
@@ -272,11 +272,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                       <h4 className="text-white font-head font-medium">
                         {getTranslation(detectedLang, 'sharedLinks')}
                       </h4>
-                      <p className="text-sm font-head text-white/60">
+                      <p className="text-xs md:text-sm font-head text-white/60">
                         {getTranslation(detectedLang, 'manageSharedChats')}
                       </p>
                     </div>
-                    <button className="px-4 py-2 text-sm border font-head border-white/20 rounded-lg hover:bg-white/10 transition text-white">
+                    <button className="px-4 py-2 text-xs md:text-sm border font-head border-white/20 rounded-lg hover:bg-white/10 transition text-white">
                       {getTranslation(detectedLang, 'manage')}
                     </button>
                   </div>
@@ -286,13 +286,13 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                       <h4 className="text-white font-head font-medium">
                         {getTranslation(detectedLang, 'exportData')}
                       </h4>
-                      <p className="text-sm font-head text-white/60">
+                      <p className="text-xs md:text-sm font-head text-white/60">
                         {getTranslation(detectedLang, 'exportDataDesc')}
                       </p>
                     </div>
                     <button
                       onClick={handleExportData}
-                      className="px-4 py-2 text-sm border border-white/20 rounded-lg hover:bg-white/10 transition text-white whitespace-nowrap"
+                      className="px-4 py-2 text-xs md:text-sm border border-white/20 rounded-lg hover:bg-white/10 transition text-white whitespace-nowrap"
                     >
                       {getTranslation(detectedLang, 'export')}
                     </button>
@@ -304,7 +304,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
             {/* Profile Tab */}
             {activeTab === 'profile' && (
               <div className="space-y-6">
-                <h3 className="text-lg font-head font-semibold text-white mb-4">
+                <h3 className="text-md md:text-lg font-head font-semibold text-white mb-4">
                   {getTranslation(detectedLang, 'profileSettings')}
                 </h3>
 
@@ -315,15 +315,15 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                       alt="User profile"
                       width={64}
                       height={64}
-                      className="w-16 h-16 rounded-full"
+                      className="w-12 h-12 md:w-16 md:h-16 rounded-full"
                     />
                   )}
                   <div>
-                    <p className="text-sm text-white/60"></p>
-                    <p className="text-lg text-white font-head font-medium">
+                    <p className="text-xs md:text-sm text-white/60"></p>
+                    <p className="text-md md:text-lg text-white font-head font-medium">
                       {user?.fullName || 'N/A'}
                     </p>
-                    <p className="text-sm text-white/60">
+                    <p className="text-xs md:text-sm text-white/60">
                       {user?.primaryEmailAddress?.emailAddress || 'No email'}
                     </p>
                   </div>
@@ -337,7 +337,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                         <p className="text-white font-head font-medium">
                           {getTranslation(detectedLang, 'language')}
                         </p>
-                        <p className="text-sm text-white/60 font-head">
+                        <p className="text-xs md:text-sm text-white/60 font-head">
                           {languages.find((l) => l.code === detectedLang)
                             ?.name || 'English'}
                         </p>
@@ -345,7 +345,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                     </div>
                     <button
                       onClick={() => setIsLanguageOpen(!isLanguageOpen)}
-                      className="px-4 py-2 text-sm border cursor-pointer border-white/20 font-head rounded-full hover:bg-white/10 transition text-white whitespace-nowrap"
+                      className="px-4 py-2 text-xs md:text-sm border cursor-pointer border-white/20 font-head rounded-full hover:bg-white/10 transition text-white whitespace-nowrap"
                     >
                       {getTranslation(detectedLang, 'change')}
                     </button>
@@ -430,7 +430,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                     </p>
                     <button
                       onClick={handleLogoutAllDevices}
-                      className="px-4 py-2 text-sm border cursor-pointer font-head border-white/20 rounded-full hover:bg-white/10 transition text-white whitespace-nowrap"
+                      className="px-4 py-2 text-xs md:text-sm border cursor-pointer font-head border-white/20 rounded-full hover:bg-white/10 transition text-white whitespace-nowrap"
                     >
                       {getTranslation(detectedLang, 'logOut')}
                     </button>
@@ -442,7 +442,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                     </p>
                     <button
                       onClick={handleDeleteAccount}
-                      className="px-4 py-2 text-sm border cursor-pointer font-head border-red-500/50 rounded-full hover:bg-red-500/20 transition text-red-400 whitespace-nowrap"
+                      className="px-4 py-2 text-xs md:text-sm border cursor-pointer font-head border-red-500/50 rounded-full hover:bg-red-500/20 transition text-red-400 whitespace-nowrap"
                     >
                       {getTranslation(detectedLang, 'delete')}
                     </button>
@@ -454,13 +454,13 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
             {/* Data Tab */}
             {activeTab === 'data' && (
               <div className="space-y-6">
-                <h3 className="text-lg font-head font-semibold text-white mb-4">
+                <h3 className=" text-lg md:text-xl font-head font-semibold text-white mb-4">
                   {getTranslation(detectedLang, 'dataPrivacy')}
                 </h3>
 
                 <div className="space-y-4">
                   <div className="p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
-                    <p className="text-sm font-head text-blue-200">
+                    <p className="text-xs md:text-sm font-head text-blue-200">
                       {getTranslation(detectedLang, 'dataEncrypted')}
                     </p>
                   </div>
@@ -470,13 +470,13 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                       <h4 className="text-white font-head font-medium">
                         {getTranslation(detectedLang, 'deleteAllChats')}
                       </h4>
-                      <p className="text-sm font-head text-white/60">
+                      <p className="text-xs md:text-sm font-head text-white/60">
                         {getTranslation(detectedLang, 'deleteAllChatsDesc')}
                       </p>
                     </div>
                     <button
                       onClick={handleDeleteAllChats}
-                      className="px-6 py-2 text-sm border font-head cursor-pointer border-red-500/50 rounded-full hover:bg-red-500/20 transition text-red-400 font-medium whitespace-nowrap"
+                      className="px-6 py-2 text-xs md:text-sm border font-head cursor-pointer border-red-500/50 rounded-full hover:bg-red-500/20 transition text-red-400 font-medium whitespace-nowrap"
                     >
                       {getTranslation(detectedLang, 'deleteAll')}
                     </button>
@@ -487,13 +487,13 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                       <h4 className="text-white font-head font-medium">
                         {getTranslation(detectedLang, 'exportAllData')}
                       </h4>
-                      <p className="text-sm font-head text-white/60">
+                      <p className="text-xs md:text-sm font-head text-white/60">
                         {getTranslation(detectedLang, 'exportAllDataDesc')}
                       </p>
                     </div>
                     <button
                       onClick={handleExportData}
-                      className="px-6 py-2 text-sm border font-head cursor-pointer border-white/20 rounded-full hover:bg-white/10 transition text-white font-medium whitespace-nowrap"
+                      className="px-6 py-2 text-xs md:text-sm border font-head cursor-pointer border-white/20 rounded-full hover:bg-white/10 transition text-white font-medium whitespace-nowrap"
                     >
                       {getTranslation(detectedLang, 'export')}
                     </button>
@@ -505,7 +505,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
             {/* About Tab */}
             {activeTab === 'about' && (
               <div className="space-y-6">
-                <h3 className="text-lg font-semibold font-head text-white mb-4">
+                <h3 className="text-md md:text-lg font-semibold font-head text-white mb-4">
                   {getTranslation(detectedLang, 'about')}
                 </h3>
 
@@ -514,7 +514,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                     <h4 className="text-white font-head font-medium mb-2">
                       {getTranslation(detectedLang, 'termsOfUse')}
                     </h4>
-                    <div className="text-sm font-head text-white/70 space-y-2 max-h-40 overflow-y-auto bg-white/5 p-4 rounded-lg border border-white/10">
+                    <div className="text-xs md:text-sm font-head text-white/70 space-y-2 max-h-40 overflow-y-auto bg-white/5 p-4 rounded-lg border border-white/10">
                       <p>{getTranslation(detectedLang, 'termsContent1')}</p>
                       <p>{getTranslation(detectedLang, 'termsContent2')}</p>
                     </div>
@@ -523,7 +523,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                     <h4 className="text-white font-head font-medium mb-2">
                       {getTranslation(detectedLang, 'privacyPolicy')}
                     </h4>
-                    <div className="text-sm font-head text-white/70 space-y-2 max-h-40 overflow-y-auto bg-white/5 p-4 rounded-lg border border-white/10">
+                    <div className="text-xs md:text-sm font-head text-white/70 space-y-2 max-h-40 overflow-y-auto bg-white/5 p-4 rounded-lg border border-white/10">
                       <p>{getTranslation(detectedLang, 'privacyContent1')}</p>
                       <p>{getTranslation(detectedLang, 'privacyContent2')}</p>
                     </div>
@@ -533,10 +533,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                     <h4 className="text-white font-head font-medium mb-2">
                       {getTranslation(detectedLang, 'aboutOmega')}
                     </h4>
-                    <p className="text-sm font-head text-white/70">
+                    <p className="text-xs md:text-sm font-head text-white/70">
                       {getTranslation(detectedLang, 'aboutOmegaContent')}
                     </p>
-                    <p className="text-xs font-head text-white/50 mt-2">
+                    <p className="text-xs md:text-sm font-head text-white/50 mt-2">
                       {getTranslation(detectedLang, 'version')}
                     </p>
                   </div>

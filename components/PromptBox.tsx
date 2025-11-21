@@ -303,7 +303,7 @@ const PromptBox: React.FC = () => {
             </button>
 
             {isModelOpen && (
-              <div className="absolute bottom-full left-0 mb-2 bg-[#09090b] border border-white/10 rounded-xl shadow-lg z-50 min-w-max w-64">
+              <div className="absolute bottom-full -left-32 md:left-0 mb-2 bg-[#09090b] border border-white/10 rounded-xl shadow-lg z-50 min-w-max w-64">
                 <div className="p-3 border-b border-zinc-800">
                   <div className="relative">
                     <svg

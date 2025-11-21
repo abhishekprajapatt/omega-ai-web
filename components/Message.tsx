@@ -277,7 +277,7 @@ const Message: React.FC<MessageProps> = ({
             </div>
           </div>
           {role === 'user' ? (
-            <span className="text-white/90 whitespace-pre-wrap wrap-break-word">
+            <span className="text-white/90 text-xs md:text-s whitespace-pre-wrap wrap-break-word">
               {content}
             </span>
           ) : (
