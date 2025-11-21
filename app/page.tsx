@@ -234,7 +234,7 @@ const Home: React.FC = () => {
                 height={40}
                 className="h-14 w-14 rounded-full"
               />
-              <p className="text-2xl md:text-4xl font-head font-black text-shadow-white">
+              <p className="text-xl md:text-4xl font-head font-black text-shadow-white">
                 {greeting}
               </p>
             </div>
