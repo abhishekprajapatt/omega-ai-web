@@ -9,7 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@clerk/nextjs": "^6.13.0",
+    "@clerk/nextjs": "^6.35.3",
     "@gsap/react": "^2.1.2",
     "@typescript-eslint/parser": "^8.31.1",
     "autoprefixer": "^10.4.21",
@@ -20,7 +20,7 @@
     "ldrs": "^1.1.7",
     "lucide-react": "^0.488.0",
     "mongoose": "^8.13.2",
-    "next": "15.2.4",
+    "next": "^16.0.3",
     "openai": "^4.91.1",
     "postcss": "^8.5.3",
     "prismjs": "^1.30.0",
