@@ -241,7 +241,7 @@ const PromptBox: React.FC = () => {
                 onClick={() => removeImage(idx)}
                 className="absolute top-1 right-1 bg-red-500 hover:bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs"
               >
-                ✕
+                ✕ 
               </button>
             </div>
           ))}
