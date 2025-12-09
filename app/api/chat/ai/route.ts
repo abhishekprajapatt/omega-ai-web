@@ -181,6 +181,7 @@ export async function POST(
             role: 'assistant',
             content: output || 'No response generated',
             timestamp: Date.now(),
+            isFromFallback: true,
           };
 
           console.log(`✓ Bytez.js ${model} fallback succeeded`);
@@ -213,6 +214,7 @@ export async function POST(
           role: 'assistant',
           content: output || 'No response generated',
           timestamp: Date.now(),
+          isFromFallback: true,
         };
 
         console.log(`✓ Bytez.js ${model} succeeded`);

@@ -4,6 +4,7 @@ import { assets } from '@/assets/assets';
 import { useClerk } from '@clerk/nextjs';
 import Sidebar from '@/components/Sidebar';
 import PromptBox from '@/components/PromptBox';
+import Message from '@/components/Message';
 import { useAppContext } from '@/context/AppContext';
 import {
   useEffect,
@@ -66,12 +67,6 @@ const Home: React.FC = () => {
       openSignIn();
     }
   }, [user, isClient, openSignIn]);
-
-  useEffect(() => {
-    if (selectedChat !== null) {
-      setSelectedChat(null);
-    }
-  }, [selectedChat, setSelectedChat]);
 
   useEffect(() => {
     if (containerRef.current) {
@@ -223,8 +218,9 @@ const Home: React.FC = () => {
             height={24}
           />
         </div>
-        <>
-          {/* home page */}
+
+        {!selectedChat || selectedChat.messages.length === 0 ? (
+          // Welcome Screen
           <>
             <div className="flex items-center gap-3">
               <Image
@@ -242,7 +238,26 @@ const Home: React.FC = () => {
               {welcomeMessage}
             </p>
           </>
-        </>
+        ) : (
+          // Messages Screen
+          <div
+            ref={containerRef}
+            className="w-full flex-1 overflow-y-auto mb-6 flex flex-col gap-4 scrollbar-hide"
+          >
+            {selectedChat.messages.map((message, index) => (
+              <Message
+                key={index}
+                role={message.role}
+                content={message.content}
+                index={index}
+                messageId={message._id || `msg-${index}`}
+                isWriting={isWriting}
+                expand={expand}
+                setExpand={setExpand}
+              />
+            ))}
+          </div>
+        )}
 
         <PromptBox />
         <p className="text-xs absolute bottom-5 sm:bottom-1 font-head text-gray-500">

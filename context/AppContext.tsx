@@ -865,6 +865,15 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
 
       if (data.success && data.data) {
         const message = data.data?.content ?? '';
+        const isFromFallback = (data.data as any)?.isFromFallback ?? false;
+
+        // Show toast if response is from fallback
+        if (isFromFallback) {
+          toast.success('Using local fallback model for response', {
+            position: 'top-right',
+            duration: 4000,
+          });
+        }
 
         let assistantMessage: Message = {
           role: 'assistant',
