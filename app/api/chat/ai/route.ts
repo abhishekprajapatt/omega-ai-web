@@ -36,6 +36,19 @@ const MODEL_CONFIG: Record<
   },
 };
 
+const OPENROUTER_CONFIG = {
+  baseURL: process.env.OPEN_ROUTER_BASE_URL || 'https://openrouter.ai/api/v1',
+  apiKey: process.env.OPEN_ROUTER_API_KEY || '',
+};
+
+const OPENROUTER_MODELS: Record<string, string> = {
+  deepseek: 'deepseek/deepseek-chat',
+  openai: 'openai/gpt-3.5-turbo',
+  grok: 'xai/grok-2',
+  gemini: 'google/gemini-2.0-flash',
+  claude: 'anthropic/claude-3-haiku',
+};
+
 const BYTEZ_CONFIG: Record<string, { apiKey: string; model: string }> = {
   deepseek: {
     apiKey: process.env.NEXT_PUBLIC_BYTEZ_API_KEY || '',
@@ -76,7 +89,7 @@ interface ApiResponse {
 }
 
 export async function POST(
-  req: NextRequest
+  req: NextRequest,
 ): Promise<NextResponse<ApiResponse>> {
   try {
     const { userId } = getAuth(req);
@@ -135,9 +148,12 @@ export async function POST(
 
     let aiMessage: any;
 
+    // Priority 1: Official API keys
     if (modelConfig.apiKey) {
       try {
-        console.log(`Using model: ${model} (${modelConfig.model})`);
+        console.log(
+          `[Priority 1] Using official API: ${model} (${modelConfig.model})`,
+        );
 
         const openai = new OpenAI({
           baseURL: modelConfig.baseURL,
@@ -159,11 +175,198 @@ export async function POST(
           ...message,
           timestamp: Date.now(),
         };
+
+        console.log(`Official API succeeded for ${model}`);
       } catch (officialError: any) {
         console.warn(
-          `Official API failed for ${model}: ${officialError.message}. Falling back to Bytez.js ${model}...`
+          `[Priority 1 Failed] Official API failed for ${model}: ${officialError.message}. Trying OpenRouter...`,
         );
 
+        // Priority 2: OpenRouter (fallback)
+        if (OPENROUTER_CONFIG.apiKey) {
+          try {
+            console.log(`[Priority 2] Using OpenRouter for ${model}`);
+
+            const openrouter = new OpenAI({
+              baseURL: OPENROUTER_CONFIG.baseURL,
+              apiKey: OPENROUTER_CONFIG.apiKey,
+              defaultHeaders: {
+                'HTTP-Referer': 'https://omega-ai.vercel.app',
+                'X-Title': 'Omega AI',
+              },
+            });
+
+            const openrouterModel =
+              OPENROUTER_MODELS[model] || OPENROUTER_MODELS.deepseek;
+
+            const completion = await openrouter.chat.completions.create({
+              messages: [{ role: 'user', content: contentMessage }],
+              model: openrouterModel,
+            });
+
+            const message = completion.choices[0]?.message;
+            if (!message) {
+              throw new Error('No response from OpenRouter');
+            }
+
+            aiMessage = {
+              ...message,
+              timestamp: Date.now(),
+              isFromOpenRouter: true,
+            };
+
+            console.log(`✓ OpenRouter succeeded for ${model}`);
+          } catch (openrouterError: any) {
+            console.warn(
+              `[Priority 2 Failed] OpenRouter failed for ${model}: ${openrouterError.message}. Trying BYTEZ...`,
+            );
+
+            // Priority 3: BYTEZ (final fallback)
+            try {
+              console.log(`[Priority 3] Using BYTEZ for ${model}`);
+              const bytezConfig =
+                BYTEZ_CONFIG[model as keyof typeof BYTEZ_CONFIG] ||
+                BYTEZ_CONFIG.deepseek;
+              const sdk = new Bytez(bytezConfig.apiKey);
+              const bytezModel = sdk.model(bytezConfig.model);
+
+              const { error, output } = await bytezModel.run(prompt);
+
+              if (error) {
+                throw new Error(`Bytez.js error: ${error}`);
+              }
+
+              aiMessage = {
+                role: 'assistant',
+                content: output || 'No response generated',
+                timestamp: Date.now(),
+                isFromBytez: true,
+              };
+
+              console.log(`✓ BYTEZ succeeded for ${model}`);
+            } catch (bytezError: any) {
+              console.error(
+                `[Priority 3 Failed] All APIs failed: ${bytezError.message}`,
+              );
+              throw new Error(`All APIs failed: ${bytezError.message}`);
+            }
+          }
+        } else {
+          // OpenRouter not configured, go directly to BYTEZ
+          console.warn(
+            `[Priority 2] OpenRouter API key not configured. Using BYTEZ...`,
+          );
+
+          try {
+            console.log(`[Priority 3] Using BYTEZ for ${model}`);
+            const bytezConfig =
+              BYTEZ_CONFIG[model as keyof typeof BYTEZ_CONFIG] ||
+              BYTEZ_CONFIG.deepseek;
+            const sdk = new Bytez(bytezConfig.apiKey);
+            const bytezModel = sdk.model(bytezConfig.model);
+
+            const { error, output } = await bytezModel.run(prompt);
+
+            if (error) {
+              throw new Error(`Bytez.js error: ${error}`);
+            }
+
+            aiMessage = {
+              role: 'assistant',
+              content: output || 'No response generated',
+              timestamp: Date.now(),
+              isFromBytez: true,
+            };
+
+            console.log(`BYTEZ succeeded for ${model}`);
+          } catch (bytezError: any) {
+            console.error(
+              `[Priority 3 Failed] BYTEZ failed:`,
+              bytezError.message,
+            );
+            throw new Error(
+              `Both OpenRouter and BYTEZ failed: ${bytezError.message}`,
+            );
+          }
+        }
+      }
+    } else {
+      // No official API key, try Priority 2: OpenRouter
+      if (OPENROUTER_CONFIG.apiKey) {
+        try {
+          console.log(
+            `[Priority 2] No official API key for ${model}. Using OpenRouter...`,
+          );
+
+          const openrouter = new OpenAI({
+            baseURL: OPENROUTER_CONFIG.baseURL,
+            apiKey: OPENROUTER_CONFIG.apiKey,
+            defaultHeaders: {
+              'HTTP-Referer': 'https://omega-ai.vercel.app',
+              'X-Title': 'Omega AI',
+            },
+          });
+
+          const openrouterModel =
+            OPENROUTER_MODELS[model] || OPENROUTER_MODELS.deepseek;
+
+          const completion = await openrouter.chat.completions.create({
+            messages: [{ role: 'user', content: contentMessage }],
+            model: openrouterModel,
+          });
+
+          const message = completion.choices[0]?.message;
+          if (!message) {
+            throw new Error('No response from OpenRouter');
+          }
+
+          aiMessage = {
+            ...message,
+            timestamp: Date.now(),
+            isFromOpenRouter: true,
+          };
+
+          console.log(`✓ OpenRouter succeeded for ${model}`);
+        } catch (openrouterError: any) {
+          console.warn(
+            `[Priority 2 Failed] OpenRouter failed for ${model}: ${openrouterError.message}. Trying BYTEZ...`,
+          );
+
+          // Priority 3: BYTEZ
+          try {
+            console.log(`[Priority 3] Using BYTEZ for ${model}`);
+            const bytezConfig =
+              BYTEZ_CONFIG[model as keyof typeof BYTEZ_CONFIG] ||
+              BYTEZ_CONFIG.deepseek;
+            const sdk = new Bytez(bytezConfig.apiKey);
+            const bytezModel = sdk.model(bytezConfig.model);
+
+            const { error, output } = await bytezModel.run(prompt);
+
+            if (error) {
+              throw new Error(`Bytez.js error: ${error}`);
+            }
+
+            aiMessage = {
+              role: 'assistant',
+              content: output || 'No response generated',
+              timestamp: Date.now(),
+              isFromBytez: true,
+            };
+
+            console.log(`✓ BYTEZ succeeded for ${model}`);
+          } catch (bytezError: any) {
+            console.error(
+              `[Priority 3 Failed] All APIs failed: ${bytezError.message}`,
+            );
+            throw new Error(`All APIs failed: ${bytezError.message}`);
+          }
+        }
+      } else {
+        // No OpenRouter key either, use BYTEZ
+        console.log(
+          `[Priority 3] No official API key or OpenRouter key for ${model}. Using BYTEZ...`,
+        );
         try {
           const bytezConfig =
             BYTEZ_CONFIG[model as keyof typeof BYTEZ_CONFIG] ||
@@ -181,49 +384,20 @@ export async function POST(
             role: 'assistant',
             content: output || 'No response generated',
             timestamp: Date.now(),
-            isFromFallback: true,
+            isFromBytez: true,
           };
 
-          console.log(`✓ Bytez.js ${model} fallback succeeded`);
+          console.log(`✓ BYTEZ succeeded for ${model}`);
         } catch (bytezError: any) {
           console.error(
-            `Bytez.js ${model} fallback failed:`,
-            bytezError.message
+            `[Priority 3 Failed] BYTEZ failed:`,
+            bytezError.message,
           );
-          throw new Error(`Both APIs failed: ${bytezError.message}`);
+          return NextResponse.json({
+            success: false,
+            error: bytezError.message,
+          });
         }
-      }
-    } else {
-      try {
-        console.log(
-          `No official API key for ${model}. Using Bytez.js ${model}...`
-        );
-        const bytezConfig =
-          BYTEZ_CONFIG[model as keyof typeof BYTEZ_CONFIG] ||
-          BYTEZ_CONFIG.deepseek;
-        const sdk = new Bytez(bytezConfig.apiKey);
-        const bytezModel = sdk.model(bytezConfig.model);
-
-        const { error, output } = await bytezModel.run(prompt);
-
-        if (error) {
-          throw new Error(`Bytez.js error: ${error}`);
-        }
-
-        aiMessage = {
-          role: 'assistant',
-          content: output || 'No response generated',
-          timestamp: Date.now(),
-          isFromFallback: true,
-        };
-
-        console.log(`✓ Bytez.js ${model} succeeded`);
-      } catch (bytezError: any) {
-        console.error(`Bytez.js ${model} failed:`, bytezError.message);
-        return NextResponse.json({
-          success: false,
-          error: bytezError.message,
-        });
       }
     }
 
