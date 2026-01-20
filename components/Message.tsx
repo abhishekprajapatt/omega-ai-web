@@ -318,7 +318,7 @@ ${finalHtml}
         )}
 
         {isPreviewMode ? (
-          <div className="relative w-full bg-white rounded-lg overflow-hidden border-2 border-gray-300 h-96">
+          <div className="relative w-full bg-white rounded-lg overflow-hidden border-2 border-gray-300 h-96 md:h-[90vh]">
             <button
               onClick={() => setIsPreviewMode(false)}
               className="absolute top-2 text-xs right-2 z-50 cursor-pointer bg-black/70 hover:bg-black/90 text-white px-2 py-1.5 rounded-md transition flex items-center gap-1 font-head font-bold"
