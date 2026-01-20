@@ -19,6 +19,7 @@ import SpeechRecognition, {
 } from 'react-speech-recognition';
 import { ArrowUp, AudioLines, CircleStop, ChevronDown } from 'lucide-react';
 import VoiceInputModal from '@/components/VoiceInputModal';
+import toast from 'react-hot-toast';
 
 interface Voice {
   lang: string;
@@ -34,7 +35,7 @@ interface AppContextType {
   toggleContinuousListening: () => Promise<void>;
   processTranscript: (
     transcript: string,
-    speech: typeof SpeechRecognition
+    speech: typeof SpeechRecognition,
   ) => void;
   isSpeaking: boolean;
   isContinuousListening: boolean;
@@ -110,7 +111,7 @@ const PromptBox: React.FC = () => {
     (e: ChangeEvent<HTMLTextAreaElement>): void => {
       setPrompt(e.target.value);
     },
-    []
+    [],
   );
 
   const handleImageUpload = useCallback(
@@ -129,7 +130,7 @@ const PromptBox: React.FC = () => {
 
       if (e.target) e.target.value = '';
     },
-    []
+    [],
   );
 
   const removeImage = (index: number): void => {
@@ -150,7 +151,7 @@ const PromptBox: React.FC = () => {
       setPrompt('');
       setUploadedImages([]);
     },
-    [prompt, uploadedImages, sendPrompt]
+    [prompt, uploadedImages, sendPrompt],
   );
 
   const handleKeyDown = useCallback(
@@ -160,7 +161,7 @@ const PromptBox: React.FC = () => {
         handleSendPrompt(e as any);
       }
     },
-    [handleSendPrompt]
+    [handleSendPrompt],
   );
 
   const handleToggleContinuousListening = useCallback((): void => {
@@ -241,7 +242,7 @@ const PromptBox: React.FC = () => {
                 onClick={() => removeImage(idx)}
                 className="absolute top-1 right-1 bg-red-500 hover:bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs"
               >
-                ✕ 
+                ✕
               </button>
             </div>
           ))}
@@ -334,7 +335,7 @@ const PromptBox: React.FC = () => {
                     .filter((model) =>
                       model.name
                         .toLowerCase()
-                        .includes(modelSearch.toLowerCase())
+                        .includes(modelSearch.toLowerCase()),
                     )
                     .map((model) => (
                       <button

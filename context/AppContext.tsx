@@ -64,13 +64,13 @@ interface AppContextValue {
   setTextUpdateTimeouts: React.Dispatch<React.SetStateAction<NodeJS.Timeout[]>>;
   editAndResendMessage: (
     messageIndex: number,
-    newContent: string
+    newContent: string,
   ) => Promise<void>;
   handleEditMessage: (messageId: string, newContent: string) => void;
   requestMicrophonePermission: () => Promise<boolean>;
   sendPrompt: (
     e?: FormEvent<HTMLFormElement> | MouseEvent | null,
-    customPrompt?: string
+    customPrompt?: string,
   ) => Promise<void>;
   speak: (text: string) => void;
   speakWithPriority: (text: string) => void;
@@ -212,7 +212,7 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
       requestMicrophonePermission().then((hasAccess) => {
         if (hasAccess) {
           console.log(
-            'Microphone permission granted, setting up background listening'
+            'Microphone permission granted, setting up background listening',
           );
           setAlwaysListening(true);
           resetTranscript();
@@ -327,7 +327,7 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
     } catch (error: unknown) {
       console.error('Microphone access denied:', error);
       toast.error(
-        'Please allow microphone access in your browser settings to use voice features'
+        'Please allow microphone access in your browser settings to use voice features',
       );
       return false;
     }
@@ -404,7 +404,7 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
 
   const getBestVoiceForLanguage = (
     targetLang: string,
-    availableVoices: SpeechSynthesisVoice[]
+    availableVoices: SpeechSynthesisVoice[],
   ): SpeechSynthesisVoice | null => {
     if (!availableVoices || availableVoices.length === 0) return null;
 
@@ -423,7 +423,7 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
     }
 
     voice = availableVoices.find(
-      (v) => v.lang.startsWith(langCode) && v.localService
+      (v) => v.lang.startsWith(langCode) && v.localService,
     );
     if (voice) return voice;
     return (
@@ -432,123 +432,155 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
   };
 
   const speakWithPriority = (text: string): void => {
-    if (!isClient || !speechSynthRef.current) return;
+    if (!isClient || !speechSynthRef.current) {
+      console.error('Speech synthesis not available or not client');
+      return;
+    }
 
     if (typeof window === 'undefined' || !window.speechSynthesis) {
-      console.error('Speech synthesis not available');
+      console.error('Speech synthesis API not available');
       return;
     }
 
     const cleanedText = cleanTextForSpeech(text);
-    console.log('Original text:', text);
-    console.log('Cleaned text for speech:', cleanedText);
+    console.log('🔊 TTS: Original text length:', text.length);
+    console.log('🔊 TTS: Cleaned text length:', cleanedText.length);
+    console.log('🔊 TTS: Cleaned text:', cleanedText.substring(0, 100));
 
-    if (
-      cleanedText.length < 10 ||
-      /^[\s\n\r]*$/.test(cleanedText) ||
-      cleanedText.includes('function') ||
-      cleanedText.includes('const ') ||
-      cleanedText.includes('let ') ||
-      cleanedText.includes('var ') ||
-      cleanedText.includes('import ') ||
-      cleanedText.includes('export ')
-    ) {
-      console.log('Skipping code/technical content');
+    // Check if text is valid for speech
+    if (!cleanedText || cleanedText.length < 5) {
+      console.warn('🔊 TTS: Text too short, skipping');
+      setIsSpeaking(false);
+      isSpeakingRef.current = false;
+      return;
+    }
+
+    // Skip pure whitespace
+    if (/^[\s\n\r]*$/.test(cleanedText)) {
+      console.warn('🔊 TTS: Text is only whitespace, skipping');
+      setIsSpeaking(false);
+      isSpeakingRef.current = false;
+      return;
+    }
+
+    // Skip pure code
+    const codeKeywords = [
+      'function',
+      'const ',
+      'let ',
+      'var ',
+      'import ',
+      'export ',
+      'class ',
+      'interface ',
+      'type ',
+    ];
+    const hasCode = codeKeywords.some((keyword) =>
+      cleanedText.includes(keyword),
+    );
+    if (hasCode && cleanedText.split(' ').length < 10) {
+      console.warn('🔊 TTS: Text appears to be code, skipping');
       setIsSpeaking(false);
       isSpeakingRef.current = false;
       return;
     }
 
     try {
-      if (speechSynthRef.current) {
+      // Cancel any ongoing speech
+      if (speechSynthRef.current && speechSynthRef.current.speaking) {
         speechSynthRef.current.cancel();
+        console.log('🔊 TTS: Cancelled previous speech');
       }
 
-      const speechLang = detectedLang || 'en-US';
-      const maxChunkLength = 150;
+      const speechLang = detectLanguage(cleanedText) || detectedLang || 'en-US';
+      const maxChunkLength = 200; // Increased from 150 for better flow
       const textChunks: string[] = [];
 
+      // Split text into chunks
       for (let i = 0; i < cleanedText.length; i += maxChunkLength) {
         textChunks.push(cleanedText.substring(i, i + maxChunkLength));
       }
+
+      console.log('🔊 TTS: Split into', textChunks.length, 'chunks');
+      console.log('🔊 TTS: Detected language:', speechLang);
+      console.log('🔊 TTS: Starting speech synthesis');
 
       setIsSpeaking(true);
       isSpeakingRef.current = true;
 
       const speakNextChunk = (index: number): void => {
         if (index >= textChunks.length) {
-          console.log('All chunks spoken, setting isSpeaking to false');
+          console.log('🔊 TTS: All chunks spoken, completed');
           setIsSpeaking(false);
           isSpeakingRef.current = false;
-          if (alwaysListening && !isContinuousListening) {
-            try {
-              SpeechRecognition.startListening({ continuous: true });
-            } catch (e) {
-              console.error(
-                'Error restarting background listening after speech:',
-                e
-              );
-            }
-          }
           return;
         }
 
         try {
-          const utterance = new SpeechSynthesisUtterance(textChunks[index]);
+          const chunk = textChunks[index];
+          console.log(
+            `🔊 TTS: Speaking chunk ${index + 1}/${textChunks.length}: "${chunk.substring(0, 50)}..."`,
+          );
 
+          const utterance = new SpeechSynthesisUtterance(chunk);
+
+          // Set voice
           if (selectedVoice) {
             utterance.voice = selectedVoice;
           } else {
             const availableVoices = speechSynthRef.current?.getVoices() || [];
             const bestVoice = getBestVoiceForLanguage(
               speechLang,
-              availableVoices
+              availableVoices,
             );
             if (bestVoice) {
               utterance.voice = bestVoice;
-              console.log(
-                'Using voice:',
-                bestVoice.name,
-                'for language:',
-                speechLang
-              );
+              console.log('🔊 TTS: Selected voice:', bestVoice.name);
             }
           }
 
-          utterance.lang = speechLang || 'en-US';
-          utterance.rate = 0.9;
-          utterance.pitch = 1;
-          utterance.volume = 1;
+          // Configure speech
+          utterance.lang = speechLang;
+          utterance.rate = 0.95; // Slightly slower for clarity
+          utterance.pitch = 1.0;
+          utterance.volume = 1.0;
+
+          utterance.onstart = () => {
+            console.log(`🔊 TTS: Started chunk ${index + 1}`);
+          };
 
           utterance.onend = () => {
-            setTimeout(() => speakNextChunk(index + 1), 50);
+            console.log(`🔊 TTS: Ended chunk ${index + 1}`);
+            setTimeout(() => speakNextChunk(index + 1), 100);
           };
 
           utterance.onerror = (e: SpeechSynthesisErrorEvent) => {
-            if (e.error !== 'interrupted') {
-              console.error('Speech error in chunk', index, ':', e.error);
-            }
-            setTimeout(() => speakNextChunk(index + 1), 50);
+            console.error(`🔊 TTS: Error in chunk ${index + 1}:`, e.error);
+            setTimeout(() => speakNextChunk(index + 1), 200);
           };
 
-          if (speechSynthRef.current) {
-            speechSynthRef.current.speak(utterance);
-          }
+          // Queue the utterance
+          speechSynthRef.current?.speak(utterance);
         } catch (chunkError) {
-          console.error('Error speaking chunk', index, ':', chunkError);
-          setTimeout(() => speakNextChunk(index + 1), 50);
+          console.error(`🔊 TTS: Exception in chunk ${index + 1}:`, chunkError);
+          setTimeout(() => speakNextChunk(index + 1), 200);
         }
       };
 
       speakNextChunk(0);
     } catch (error: unknown) {
-      console.error('Speech synthesis error:', error);
+      console.error('🔊 TTS: Critical error:', error);
       setIsSpeaking(false);
       isSpeakingRef.current = false;
     }
   };
 
   const speak = (text: string): void => {
+    if (!text || text.trim().length === 0) {
+      console.warn('🔊 TTS: Empty text provided');
+      return;
+    }
+    console.log('🔊 TTS: speak() called with text length:', text.length);
     speakWithPriority(text);
   };
 
@@ -562,7 +594,7 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
         (greeting) =>
           lowerText === greeting.toLowerCase() ||
           lowerText.includes('i am here how can i help you') ||
-          lowerText.includes('how can i help you')
+          lowerText.includes('how can i help you'),
       )
     ) {
       return true;
@@ -669,7 +701,7 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
           if (currentTranscript.trim() && !isSpeaking && !isLoading) {
             console.log(
               'Silence detected, processing command:',
-              currentTranscript
+              currentTranscript,
             );
 
             if (isFixedResponse(currentTranscript)) {
@@ -691,7 +723,7 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
 
   const sendPrompt = async (
     e?: FormEvent<HTMLFormElement> | MouseEvent | null,
-    customPrompt?: string
+    customPrompt?: string,
   ): Promise<void> => {
     if (e) e.preventDefault();
     let finalPrompt = customPrompt !== undefined ? customPrompt : '';
@@ -743,7 +775,7 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
 
       if (isFixedResponse(finalPrompt)) {
         console.log(
-          'Fixed response detected in sendPrompt, not sending to backend'
+          'Fixed response detected in sendPrompt, not sending to backend',
         );
         return;
       }
@@ -779,7 +811,7 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
             await axios.post(
               '/api/chat/create',
               {},
-              { headers: { Authorization: `Bearer ${token}` } }
+              { headers: { Authorization: `Bearer ${token}` } },
             );
           if (createResponse.data.success && createResponse.data.data) {
             const newChatId = createResponse.data.data._id;
@@ -795,8 +827,8 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
             setSelectedChat(updatedChat);
             setChats((prevChats) =>
               prevChats.map((chat) =>
-                chat._id === chatToUse._id ? updatedChat : chat
-              )
+                chat._id === chatToUse._id ? updatedChat : chat,
+              ),
             );
             if (typeof window !== 'undefined') {
               window.history.pushState({}, '', `/c/${newChatId}`);
@@ -833,8 +865,8 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
         prevChats.map((chat: Chat) =>
           chat._id === chatId
             ? { ...chat, messages: [...(chat.messages || []), userPrompt] }
-            : chat
-        )
+            : chat,
+        ),
       );
 
       setSelectedChat((prev: Chat | null): Chat | null => {
@@ -858,7 +890,7 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
           },
           {
             headers: { Authorization: `Bearer ${token}` },
-          }
+          },
         );
 
       const { data } = response;
@@ -897,14 +929,18 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
                   ...chat,
                   messages: [...chat.messages, assistantMessage],
                 }
-              : chat
-          )
+              : chat,
+          ),
         );
 
-        if (message && isVoiceInput) {
+        // ✅ AUTO-SPEAK: Speak response if voice mode is enabled OR voice input was used
+        if (message && (isVoiceInput || isContinuousListening)) {
+          console.log(
+            '🔊 AUTO-SPEAK: Triggered (voice input or continuous listening)',
+          );
           setTimeout(() => {
             speak(message);
-          }, 100);
+          }, 500); // Delay to ensure response is rendered first
         }
 
         const messageTokens = message.split(' ');
@@ -929,7 +965,7 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
                     return { ...msg, content: updatedContent };
                   }
                   return msg;
-                }
+                },
               );
 
               return { ...prev, messages: updatedMessages };
@@ -949,11 +985,11 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
                             return { ...msg, content: updatedContent };
                           }
                           return msg;
-                        }
+                        },
                       ),
                     }
-                  : chat
-              )
+                  : chat,
+              ),
             );
 
             if (i === messageTokens.length - 1) {
@@ -980,7 +1016,7 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
       toast.error(
         (error as any).response?.data?.message ||
           (error as Error).message ||
-          'An error occurred'
+          'An error occurred',
       );
       setIsWriting(false);
     } finally {
@@ -1007,8 +1043,8 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
       prevChats.map((chat: Chat) =>
         chat._id === selectedChat._id
           ? { ...chat, messages: updatedMessages }
-          : chat
-      )
+          : chat,
+      ),
     );
   };
 
@@ -1055,7 +1091,7 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
         selectedChat.messages.length === 0
       ) {
         toast.error(
-          'Please send at least one message before creating a new chat'
+          'Please send at least one message before creating a new chat',
         );
         return;
       }
@@ -1084,7 +1120,7 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
         `/api/chat/delete/${chatId}`,
         {
           headers: { Authorization: `Bearer ${token}` },
-        }
+        },
       );
       if (data.success) {
         fetchUserChats();
@@ -1106,7 +1142,7 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
       const { data }: AxiosResponse<ApiResponse> = await axios.put(
         `/api/chat/rename/${chatId}`,
         { name: newName },
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
       if (data.success) {
         fetchUserChats();
@@ -1123,7 +1159,7 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
 
   const generateChatTitle = async (
     chatId: string,
-    userQuery: string
+    userQuery: string,
   ): Promise<void> => {
     setRenamingChatId(chatId);
     try {
@@ -1154,7 +1190,7 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
             chatId: chatId,
             name: titleSuggestion,
           },
-          { headers: { Authorization: `Bearer ${token}` } }
+          { headers: { Authorization: `Bearer ${token}` } },
         );
 
         if (data.success) {
@@ -1163,8 +1199,8 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
           }
           setChats((prevChats) =>
             prevChats.map((chat) =>
-              chat._id === chatId ? { ...chat, name: titleSuggestion } : chat
-            )
+              chat._id === chatId ? { ...chat, name: titleSuggestion } : chat,
+            ),
           );
         } else {
           console.warn('Failed to rename chat:', data.message);
@@ -1173,8 +1209,8 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
           }
           setChats((prevChats) =>
             prevChats.map((chat) =>
-              chat._id === chatId ? { ...chat, name: titleSuggestion } : chat
-            )
+              chat._id === chatId ? { ...chat, name: titleSuggestion } : chat,
+            ),
           );
         }
       } catch (apiError) {
@@ -1184,8 +1220,8 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
         }
         setChats((prevChats) =>
           prevChats.map((chat) =>
-            chat._id === chatId ? { ...chat, name: titleSuggestion } : chat
-          )
+            chat._id === chatId ? { ...chat, name: titleSuggestion } : chat,
+          ),
         );
       }
     } catch (error: unknown) {
@@ -1202,7 +1238,7 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
         '/api/chat/get',
         {
           headers: { Authorization: `Bearer ${token}` },
-        }
+        },
       );
       if (data.success) {
         const chatsData: Chat[] = Array.isArray(data.data) ? data.data : [];
@@ -1210,7 +1246,7 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
         const sortedData = chatsData.sort(
           (a: Chat, b: Chat) =>
             new Date(b.updatedAt || 0).getTime() -
-            new Date(a.updatedAt || 0).getTime()
+            new Date(a.updatedAt || 0).getTime(),
         );
         setChats(sortedData);
 
@@ -1228,7 +1264,7 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
 
   const editAndResendMessage = async (
     messageIndex: number,
-    newContent: string
+    newContent: string,
   ): Promise<void> => {
     try {
       if (!selectedChat || !selectedChat.messages) return;
@@ -1258,7 +1294,7 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
 
       const truncatedMessages = selectedChat.messages.slice(
         0,
-        messageIndex + 1
+        messageIndex + 1,
       );
       truncatedMessages[messageIndex] = {
         ...truncatedMessages[messageIndex],
@@ -1274,8 +1310,8 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
         prevChats.map((chat: Chat) =>
           chat._id === selectedChat._id
             ? { ...chat, messages: truncatedMessages }
-            : chat
-        )
+            : chat,
+        ),
       );
 
       try {
@@ -1294,7 +1330,7 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
               isEdit: true,
               editedMessageIndex: messageIndex,
             },
-            { headers: { Authorization: `Bearer ${token}` } }
+            { headers: { Authorization: `Bearer ${token}` } },
           );
         if (data.success) {
           const message = data.data?.content ?? '';
@@ -1338,7 +1374,7 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
                       return { ...msg, content: updatedContent };
                     }
                     return msg;
-                  }
+                  },
                 );
 
                 return { ...prev, messages: updatedMessages };
@@ -1370,8 +1406,8 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
                       },
                     ],
                   }
-                : chat
-            )
+                : chat,
+            ),
           );
 
           if (truncatedMessages.length === 1) {
@@ -1386,7 +1422,7 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
         toast.error(
           (error as any).response?.data?.message ||
             (error as Error).message ||
-            'An error occurred'
+            'An error occurred',
         );
         setIsWriting(false);
       } finally {
