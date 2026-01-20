@@ -3,7 +3,7 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { IoSettingsSharp } from 'react-icons/io5';
 import { useClerk, UserButton } from '@clerk/nextjs';
-import React, { useEffect, useState, MouseEvent } from 'react';
+import React, { useEffect, useState, MouseEvent, useRef } from 'react';
 import {
   FaInstagram,
   FaDownload,
@@ -78,6 +78,7 @@ const Sidebar: React.FC<SidebarProps> = ({ expand, setExpand }) => {
     previousMonth: [],
     older: [],
   });
+  const userMenuRef = useRef<HTMLDivElement>(null);
 
   const isNewChatDisabled =
     !selectedChat ||
@@ -86,7 +87,7 @@ const Sidebar: React.FC<SidebarProps> = ({ expand, setExpand }) => {
       (!selectedChat.messages || selectedChat.messages.length === 0));
 
   const handleNewChatClickWithCheck = (
-    e: MouseEvent<HTMLButtonElement>
+    e: MouseEvent<HTMLButtonElement>,
   ): void => {
     e.stopPropagation();
 
@@ -145,6 +146,30 @@ const Sidebar: React.FC<SidebarProps> = ({ expand, setExpand }) => {
       setGroupedChats(grouped);
     }
   }, [chats]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: Event) => {
+      if (
+        userMenuRef.current &&
+        !userMenuRef.current.contains(event.target as Node)
+      ) {
+        setShowUserMenu(false);
+      }
+    };
+
+    if (showUserMenu) {
+      document.addEventListener(
+        'mousedown',
+        handleClickOutside as EventListener,
+      );
+      return () => {
+        document.removeEventListener(
+          'mousedown',
+          handleClickOutside as EventListener,
+        );
+      };
+    }
+  }, [showUserMenu]);
 
   const handleCreateNewChat = async (): Promise<void> => {
     await createNewChat();
@@ -259,8 +284,8 @@ const Sidebar: React.FC<SidebarProps> = ({ expand, setExpand }) => {
             !selectedChat
               ? 'Login or send a message first'
               : isNewChatDisabled
-              ? 'Send a message first before creating a new chat'
-              : 'New Chat'
+                ? 'Send a message first before creating a new chat'
+                : 'New Chat'
           }
         >
           <Image
@@ -279,8 +304,8 @@ const Sidebar: React.FC<SidebarProps> = ({ expand, setExpand }) => {
               {!selectedChat
                 ? 'Login first'
                 : isNewChatDisabled
-                ? 'Send a message first'
-                : getTranslation(detectedLang, 'newChat')}
+                  ? 'Send a message first'
+                  : getTranslation(detectedLang, 'newChat')}
               <div className="w-3 h-3 absolute bg-black rotate-45 left-4 -bottom-1.5" />
             </div>
           )}
@@ -338,14 +363,14 @@ const Sidebar: React.FC<SidebarProps> = ({ expand, setExpand }) => {
                           chat.messages.length > 0 &&
                           chat.name
                             .toLowerCase()
-                            .includes(searchQuery.toLowerCase())
+                            .includes(searchQuery.toLowerCase()),
                       )
                       .sort((a, b) => {
                         const dateA = new Date(
-                          a.updatedAt || new Date()
+                          a.updatedAt || new Date(),
                         ).getTime();
                         const dateB = new Date(
-                          b.updatedAt || new Date()
+                          b.updatedAt || new Date(),
                         ).getTime();
                         return dateB - dateA;
                       })
@@ -364,7 +389,7 @@ const Sidebar: React.FC<SidebarProps> = ({ expand, setExpand }) => {
                         chat.messages.length > 0 &&
                         chat.name
                           .toLowerCase()
-                          .includes(searchQuery.toLowerCase())
+                          .includes(searchQuery.toLowerCase()),
                     ).length === 0 && (
                       <p className="text-white/25 my-4 text-sm">
                         {getTranslation(detectedLang, 'noMatchingChats')}
@@ -375,27 +400,27 @@ const Sidebar: React.FC<SidebarProps> = ({ expand, setExpand }) => {
                   <>
                     {renderChatGroup(
                       groupedChats.recent,
-                      getTranslation(detectedLang, 'recent')
+                      getTranslation(detectedLang, 'recent'),
                     )}
                     {renderChatGroup(
                       groupedChats.today,
-                      getTranslation(detectedLang, 'today')
+                      getTranslation(detectedLang, 'today'),
                     )}
                     {renderChatGroup(
                       groupedChats.yesterday,
-                      getTranslation(detectedLang, 'yesterday')
+                      getTranslation(detectedLang, 'yesterday'),
                     )}
                     {renderChatGroup(
                       groupedChats.previousWeek,
-                      getTranslation(detectedLang, 'previousWeek')
+                      getTranslation(detectedLang, 'previousWeek'),
                     )}
                     {renderChatGroup(
                       groupedChats.previousMonth,
-                      getTranslation(detectedLang, 'previousMonth')
+                      getTranslation(detectedLang, 'previousMonth'),
                     )}
                     {renderChatGroup(
                       groupedChats.older,
-                      getTranslation(detectedLang, 'older')
+                      getTranslation(detectedLang, 'older'),
                     )}
                   </>
                 )}
@@ -415,7 +440,7 @@ const Sidebar: React.FC<SidebarProps> = ({ expand, setExpand }) => {
                 onClick={() =>
                   window.open(
                     'https://instagram.com/abhishekprajapatt',
-                    '_blank'
+                    '_blank',
                   )
                 }
                 className="h-9 w-9 flex items-center justify-center hover:bg-gray-500/30 rounded-lg transition"
@@ -442,7 +467,7 @@ const Sidebar: React.FC<SidebarProps> = ({ expand, setExpand }) => {
                 onClick={() =>
                   window.open(
                     'https://linkedin.com/in/abhishekprajapatt',
-                    '_blank'
+                    '_blank',
                   )
                 }
                 className="h-9 w-9 flex items-center justify-center hover:bg-gray-500/30 rounded-lg transition"
@@ -469,7 +494,7 @@ const Sidebar: React.FC<SidebarProps> = ({ expand, setExpand }) => {
                 onClick={() =>
                   window.open(
                     'https://reddit.com/u/abhishekprajapatt',
-                    '_blank'
+                    '_blank',
                   )
                 }
                 className="h-9 w-9 flex items-center justify-center hover:bg-gray-500/30 rounded-lg transition"
@@ -524,6 +549,7 @@ const Sidebar: React.FC<SidebarProps> = ({ expand, setExpand }) => {
 
           {expand && showUserMenu && (
             <div
+              ref={userMenuRef}
               className={`absolute bottom-8 ${
                 expand ? 'left-4' : 'left-20'
               } bg-[#121212] rounded-xl w-max p-2 z-10 shadow-lg select-none`}
@@ -585,7 +611,7 @@ const Sidebar: React.FC<SidebarProps> = ({ expand, setExpand }) => {
                 onClick={() =>
                   window.open(
                     'https://instagram.com/abhishekprajapatt',
-                    '_blank'
+                    '_blank',
                   )
                 }
                 className="w-full flex items-center gap-3 font-head text-white/80 text-sm p-3 rounded-lg hover:bg-gray-500/20 transition cursor-pointer"
@@ -608,7 +634,7 @@ const Sidebar: React.FC<SidebarProps> = ({ expand, setExpand }) => {
                 onClick={() =>
                   window.open(
                     'https://linkedin.com/in/abhishekprajapatt',
-                    '_blank'
+                    '_blank',
                   )
                 }
                 className="w-full flex items-center gap-3 font-head text-white/80 text-sm p-3 rounded-lg hover:bg-gray-500/20 transition cursor-pointer"
@@ -631,7 +657,7 @@ const Sidebar: React.FC<SidebarProps> = ({ expand, setExpand }) => {
                 onClick={() =>
                   window.open(
                     'https://reddit.com/u/abhishekprajapatt',
-                    '_blank'
+                    '_blank',
                   )
                 }
                 className="w-full flex items-center gap-3 font-head text-white/80 text-sm p-3 rounded-lg hover:bg-gray-500/20 transition cursor-pointer"

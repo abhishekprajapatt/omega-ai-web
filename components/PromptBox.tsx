@@ -220,7 +220,7 @@ const PromptBox: React.FC = () => {
     >
       <textarea
         onKeyDown={handleKeyDown}
-        className="outline-none w-full resize-none overflow-hidden wrap-break-word bg-transparent text-white min-h-[50px]"
+        className="outline-none w-full resize-none overflow-hidden wrap-break-word bg-transparent text-white min-h-12.5"
         rows={2}
         placeholder="Message OMEGA"
         onChange={handlePromptChange}
@@ -267,8 +267,8 @@ const PromptBox: React.FC = () => {
             />
             <MdAddBox size={26} />
           </label>
-          <p className="flex items-center sm:gap-1 text-xs border font-head font-black border-gray-300/40 px-2 py-1 w-22 sm:w-auto rounded-full select-none hover:bg-gray-500/20 transition">
-            <ImOmega className="w-4" size={14} />
+          <p className="flex items-center gap-1 text-xs border font-head font-bold sm:font-black border-gray-300/40 px-2 py-1 w-22 sm:w-auto rounded-full select-none hover:bg-gray-500/20 transition">
+            <ImOmega className="w-3 sm:w-4" size={14} />
             OMEGA
           </p>
 

@@ -200,7 +200,7 @@ const Home: React.FC = () => {
   return (
     <div className="flex h-screen">
       <Sidebar expand={expand} setExpand={setExpand} />
-      <div className="flex-1 flex flex-col items-center justify-center px-6 pb-12 sm:pb-8 bg-[#09090b] [#292a2d] text-white relative">
+      <div className="flex-1 flex flex-col items-center justify-center px-2 sm:px-6 pb-12 sm:pb-8 bg-[#09090b] [#292a2d] text-white relative">
         <div className="md:hidden absolute px-4 top-6 flex items-center justify-between w-full">
           <Image
             onClick={handleToggleExpand}
@@ -227,9 +227,9 @@ const Home: React.FC = () => {
                 alt="Omega Logo"
                 width={40}
                 height={40}
-                className="h-14 w-14 rounded-full"
+                className="sm:h-14 sm:w-14 rounded-full"
               />
-              <p className="text-xl md:text-4xl font-head font-black text-shadow-white">
+              <p className="text-md sm:text-xl md:text-4xl font-head font-black text-shadow-white">
                 {greeting}
               </p>
             </div>

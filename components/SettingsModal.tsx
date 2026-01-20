@@ -29,6 +29,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
   const [isLanguageOpen, setIsLanguageOpen] = useState(false);
   const [languageSearch, setLanguageSearch] = useState('');
   const languageMenuRef = useRef<HTMLDivElement>(null);
+  const modalContentRef = useRef<HTMLDivElement>(null);
   const { user } = useUser();
   const { signOut } = useClerk();
   const { detectedLang, setDetectedLang } = useAppContext() as any;
@@ -85,6 +86,30 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
     };
   }, [isLanguageOpen]);
 
+  useEffect(() => {
+    const handleBackdropClick = (event: MouseEvent) => {
+      if (
+        modalContentRef.current &&
+        !modalContentRef.current.contains(event.target as Node)
+      ) {
+        onClose();
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener(
+        'mousedown',
+        handleBackdropClick as EventListener,
+      );
+      return () => {
+        document.removeEventListener(
+          'mousedown',
+          handleBackdropClick as EventListener,
+        );
+      };
+    }
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const handleExportData = async () => {
@@ -116,7 +141,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
   const handleDeleteAllChats = async () => {
     if (
       window.confirm(
-        'Are you sure you want to delete ALL your chats? This action cannot be undone.'
+        'Are you sure you want to delete ALL your chats? This action cannot be undone.',
       )
     ) {
       try {
@@ -138,7 +163,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
   const handleDeleteAccount = async () => {
     if (
       window.confirm(
-        'Are you sure you want to delete your account? This action cannot be undone.'
+        'Are you sure you want to delete your account? This action cannot be undone.',
       )
     ) {
       try {
@@ -157,7 +182,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-      <div className="bg-[#09090b] rounded-2xl max-w-2xl w-full max-h-[90vh] border border-white/10">
+      <div
+        ref={modalContentRef}
+        className="bg-[#09090b] rounded-2xl max-w-2xl w-full max-h-[90vh] border border-white/10"
+      >
         {/* Header */}
         <div className="sticky top-0 flex items-center justify-between px-4 py-2">
           <h2 className="text-2xl font-bold font-head text-white">
@@ -391,7 +419,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                                 .includes(languageSearch.toLowerCase()) ||
                               lang.nativeName
                                 .toLowerCase()
-                                .includes(languageSearch.toLowerCase())
+                                .includes(languageSearch.toLowerCase()),
                           )
                           .map((lang) => (
                             <button
@@ -402,7 +430,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                                 setIsLanguageOpen(false);
                                 setLanguageSearch('');
                                 toast.success(
-                                  `Language changed to ${lang.name}`
+                                  `Language changed to ${lang.name}`,
                                 );
                               }}
                               className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-md text-left text-sm transition ${
