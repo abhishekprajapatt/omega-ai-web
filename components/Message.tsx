@@ -1,4 +1,12 @@
 import Prism from 'prismjs';
+import 'prismjs/themes/prism-okaidia.css';
+import 'prismjs/components/prism-javascript';
+import 'prismjs/components/prism-typescript';
+import 'prismjs/components/prism-css';
+import 'prismjs/components/prism-markup';
+import 'prismjs/components/prism-json';
+import 'prismjs/components/prism-python';
+import 'prismjs/components/prism-bash';
 import Image from 'next/image';
 import toast from 'react-hot-toast';
 import Markdown from 'react-markdown';
@@ -206,6 +214,7 @@ const Message: React.FC<MessageProps> = ({
     language: string;
   }) => {
     const [isPreviewMode, setIsPreviewMode] = useState<boolean>(false);
+    const codeRef = React.useRef<HTMLElement>(null);
     const isHtml = ['html', 'htm'].includes(language.toLowerCase());
     const allBlocks = extractAllCodeBlocks();
 
@@ -277,10 +286,16 @@ ${finalHtml}
       return finalHtml;
     };
 
+    useEffect(() => {
+      if (codeRef.current && !isPreviewMode) {
+        Prism.highlightElement(codeRef.current);
+      }
+    }, [displayCode, isPreviewMode, language]);
+
     return (
-      <div className="relative group/code bg-[#1e1e1e] rounded-lg p-4 my-2 overflow-x-auto">
+      <div className="relative group/code rounded-lg my-2 overflow-x-auto">
         {!isPreviewMode && (
-          <div className="absolute top-2 right-2 flex items-center gap-2 opacity-0 group-hover/code:opacity-100 transition-all z-20">
+          <div className="absolute top-4 right-2 flex items-center gap-2 opacity-0 group-hover/code:opacity-100 transition-all z-20">
             <Tooltip text="Copy code">
               <div
                 onClick={() => copyCode(displayCode)}
@@ -319,8 +334,13 @@ ${finalHtml}
             />
           </div>
         ) : (
-          <pre className="overflow-auto">
-            <code className={`language-${language}`}>{displayCode}</code>
+          <pre className="overflow-auto bg-[#0f0f1e] rounded-lg text-sm leading-relaxed font-mono">
+            <code
+              ref={codeRef}
+              className={`language-${language} text-[13px] code-highlight`}
+            >
+              {displayCode}
+            </code>
           </pre>
         )}
       </div>
