@@ -416,7 +416,7 @@ const PromptBox: React.FC = () => {
                 } rounded-full p-2 cursor-pointer`}
               >
                 <ArrowUp size={20} />
-              </button>
+              </button> 
             </div>
           ) : (
             <div className="relative group flex items-center justify-center">

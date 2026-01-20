@@ -54,6 +54,7 @@ interface SidebarProps {
   setExpand: (expand: boolean) => void;
 }
 
+
 const Sidebar: React.FC<SidebarProps> = ({ expand, setExpand }) => {
   const { openSignIn, signOut } = useClerk();
   const router = useRouter();

@@ -329,7 +329,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
               </div>
             )}
 
-            {/* Profile Tab */}
             {activeTab === 'profile' && (
               <div className="space-y-6">
                 <h3 className="text-md md:text-lg font-head font-semibold text-white mb-4">

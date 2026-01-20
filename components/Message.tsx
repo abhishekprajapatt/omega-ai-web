@@ -29,6 +29,7 @@ const Tooltip: React.FC<TooltipProps> = ({ text, children }) => {
     </div>
   );
 };
+
 interface ChatMessage {
   role: string;
   content: string;
