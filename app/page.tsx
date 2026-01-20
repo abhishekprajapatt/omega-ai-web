@@ -220,7 +220,6 @@ const Home: React.FC = () => {
         </div>
 
         {!selectedChat || selectedChat.messages.length === 0 ? (
-          // Welcome Screen
           <>
             <div className="flex items-center gap-3">
               <Image
@@ -239,7 +238,6 @@ const Home: React.FC = () => {
             </p>
           </>
         ) : (
-          // Messages Screen
           <div
             ref={containerRef}
             className="w-full flex-1 overflow-y-auto mb-6 flex flex-col gap-4 scrollbar-hide"

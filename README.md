@@ -1,250 +1,164 @@
-# OMEGA - AI Chat Application
+# 🎙️ OMEGA - AI Chat Application
 
-An advanced AI-powered chat application built with modern web technologies. OMEGA provides intelligent conversations with multiple AI models, voice input/output capabilities, and real-time message processing.
+> **Advanced AI Chat with Real-Time Streaming, Voice Control & Barge-In Support**
 
-## Features
+[![Next.js](https://img.shields.io/badge/Next.js-14+-000000?style=flat-square&logo=next.js)](https://nextjs.org)
+[![React](https://img.shields.io/badge/React-18+-61DAFB?style=flat-square&logo=react)](https://react.dev)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5+-3178C6?style=flat-square&logo=typescript)](https://www.typescriptlang.org)
+[![MongoDB](https://img.shields.io/badge/MongoDB-Latest-13AA52?style=flat-square&logo=mongodb)](https://www.mongodb.com)
+[![License](https://img.shields.io/badge/License-GPL%203.0-blue?style=flat-square)](LICENSE)
 
-### 🤖 AI Models
+<div align="center">
+  
+**[⭐ Star this repo](#-support-this-project) if you find it useful!**
 
-- **Multiple AI Models Support**
-  - DeepSeek R1
-  - ChatGPT-5 (OpenAI)
-  - Grok 4
-  - Gemini 2.5 Pro
-  - Claude Sonnet 4.5
+[Features](#-features) • [Tech Stack](#-tech-stack) • [Quick Start](#-quick-start) • [API Docs](#-api-endpoints) • [Contributing](#-contributing)
 
-### 🎙️ Voice Features
+</div>
 
-- Real-time voice input with continuous listening
-- Text-to-speech output with multiple voice options
-- Voice message detection and processing
-- Wake word activation ("Hey Omega", "Hello Omega", etc.)
-- Background listening mode
+---
 
-### 💬 Chat Features
+## ✨ Features
 
-- Create and manage multiple chat conversations
-- Real-time message typing animation
-- Edit and resend messages
-- Regenerate AI responses
-- Chat history with smart grouping (Recent, Today, Yesterday, etc.)
-- Search chat history
+### 🤖 **Multiple AI Models**
+
+- DeepSeek R1
+- ChatGPT (OpenAI)
+- Grok 4
+- Gemini 2.5 Pro
+- Claude Sonnet 4.5
+- **Multi-provider fallback system** (Official → OpenRouter → BYTEZ)
+
+### 🎙️ **Voice Features (ChatGPT Voice Mode Clone)**
+
+- ✅ **Real-time Voice Input** - Continuous listening with wake words
+- ✅ **Text-to-Speech Output** - Multiple voices & languages
+- ✅ **Barge-In Support** - Interrupt AI mid-response anytime
+- ✅ **True Streaming** - Real-time token streaming (no fake typing)
+- ✅ **Voice-Only Mode** - AI ignores its own voice (no feedback loops)
+- ✅ **Instant Response** - Human speech only triggers responses
+
+### 💬 **Chat Features**
+
+- Create & manage multiple conversations
+- Edit and regenerate messages
+- Smart chat history grouping
 - Auto-generated chat titles
+- Search & filter chats
 
-### 🎨 User Interface
+### 🎨 **User Experience**
 
-- Dark mode theme
-- Collapsible sidebar
-- Responsive design (Mobile & Desktop)
-- Markdown rendering for formatted responses
-- Code syntax highlighting with Prism.js
-- Copy/paste message functionality
+- Dark mode optimized UI
+- Responsive (Mobile & Desktop)
+- Syntax-highlighted code blocks
+- Markdown rendering
+- Copy/paste functionality
 
-### 🔐 Authentication
+### 🔐 **Security**
 
-- Clerk authentication integration
-- User profile management
-- Secure API endpoints
+- Clerk authentication
+- Protected API endpoints
+- User data export
+- GDPR-compliant
 
-### 🌍 Localization
+---
 
-- Multi-language support
-- Auto-detected browser language
-- Language-specific AI responses
+## 🛠️ Tech Stack
 
-## Tech Stack
+| Layer        | Technologies                                     |
+| ------------ | ------------------------------------------------ |
+| **Frontend** | Next.js 14+, React 18+, TypeScript, Tailwind CSS |
+| **Backend**  | Node.js, Next.js API Routes                      |
+| **Database** | MongoDB, Mongoose                                |
+| **Auth**     | Clerk                                            |
+| **Voice**    | Web Speech API                                   |
+| **AI**       | OpenAI, OpenRouter, BYTEZ                        |
+| **UI**       | Lucide Icons, React Markdown, Prism.js           |
 
-### Frontend
+---
 
-- **Framework**: Next.js 14+ (React)
-- **Language**: TypeScript
-- **Styling**: Tailwind CSS
-- **UI Components**: Lucide React Icons
-- **Markdown**: React Markdown + Prism.js
-- **Voice API**: Web Speech API
-- **Authentication**: Clerk
-
-### Backend
-
-- **Runtime**: Node.js
-- **Framework**: Next.js API Routes
-- **Database**: MongoDB
-- **ORM**: Mongoose/Native MongoDB Driver
-
-### Services
-
-- **Authentication**: Clerk
-- **AI Integration**: Multiple API providers
-
-## Project Structure
-
-```
-omega/
-├── app/
-│   ├── api/
-│   │   ├── chat/
-│   │   │   ├── ai/               # AI response endpoint
-│   │   │   ├── create/           # Create new chat
-│   │   │   ├── delete/           # Delete chat
-│   │   │   ├── get/              # Fetch chats
-│   │   │   └── rename/           # Rename chat
-│   │   ├── clerk/                # Clerk webhook
-│   │   └── user/                 # User endpoints
-│   ├── c/[id]/                   # Chat page (dynamic route)
-│   ├── globals.css               # Global styles
-│   ├── layout.tsx                # Root layout
-│   └── page.tsx                  # Home page
-├── components/
-│   ├── ChatLabel.tsx             # Chat list item
-│   ├── Message.tsx               # Message component
-│   ├── PromptBox.tsx             # Input box
-│   ├── SettingsModal.tsx         # Settings modal
-│   ├── Sidebar.tsx               # Sidebar navigation
-│   ├── SkeletonLoading.tsx       # Loading skeleton
-│   └── VoiceInputModal.tsx       # Voice input modal
-├── config/
-│   └── db.ts                     # Database configuration
-├── context/
-│   └── AppContext.tsx            # Global app context with state management
-├── lib/
-│   └── translations.ts           # Language translations
-├── models/
-│   ├── Chat.ts                   # Chat MongoDB schema
-│   └── User.ts                   # User MongoDB schema
-├── public/
-│   ├── assets/                   # Images and icons
-│   │   └── aimodels/            # AI model images
-│   └── sounds/                   # Audio files
-├── eslint.config.ts              # ESLint configuration
-├── middleware.ts                 # Clerk auth middleware
-├── next.config.ts                # Next.js configuration
-├── tailwind.config.ts            # Tailwind CSS configuration
-├── tsconfig.json                 # TypeScript configuration
-├── postcss.config.mjs            # PostCSS configuration
-└── package.json                  # Project dependencies
-```
-
-## Getting Started
+## 🚀 Quick Start
 
 ### Prerequisites
 
 - Node.js 18+
-- npm or yarn
 - MongoDB instance
-- Clerk account for authentication
+- Clerk account
+- API keys (optional for AI fallbacks)
 
 ### Installation
 
-1. Clone the repository
-
 ```bash
-git clone https://github.com/abhishekprajapatt/omega.git
-cd omega
-```
+# 1. Clone repository
+git clone https://github.com/abhishekprajapatt/omega-ai-web.git
+cd omega-ai-web
 
-2. Install dependencies
-
-```bash
+# 2. Install dependencies
 npm install
+
+# 3. Set up environment variables
+cp .env.example .env.local
 ```
 
-3. Set up environment variables
-   Create `.env.local` file:
-
-```env
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
-CLERK_SECRET_KEY=your_clerk_secret_key
-MONGODB_URI=your_mongodb_connection_string
-NEXT_PUBLIC_API_URL=http://localhost:3000
-```
-
-4. Run development server
+### Run Development Server
 
 ```bash
 npm run dev
 ```
 
-5. Open [http://localhost:3000](http://localhost:3000) in your browser
+Open [http://localhost:3000](http://localhost:3000) 🎉
 
-## Development
+---
 
-### Build
-
-```bash
-npm run build
-```
-
-### Run Production
-
-```bash
-npm start
-```
-
-### Linting
-
-```bash
-npm run lint
-```
-
-## API Endpoints
+## 📚 API Endpoints
 
 ### Chat Management
 
-| Method | Endpoint                | Description          |
-| ------ | ----------------------- | -------------------- |
-| POST   | `/api/chat/create`      | Create new chat      |
-| GET    | `/api/chat/get`         | Fetch user chats     |
-| DELETE | `/api/chat/delete/[id]` | Delete specific chat |
-| POST   | `/api/chat/rename`      | Rename chat          |
+```
+POST   /api/chat/create      - Create new chat
+GET    /api/chat/get         - Fetch all chats
+DELETE /api/chat/delete      - Delete chat
+POST   /api/chat/rename      - Rename chat
+```
 
-### AI
+### AI Response (Streaming)
 
-| Method | Endpoint       | Description              |
-| ------ | -------------- | ------------------------ |
-| POST   | `/api/chat/ai` | Send message to AI model |
+```
+POST   /api/chat/ai          - Send message & get streaming response
+```
 
 ### User
 
-| Method | Endpoint                     | Description           |
-| ------ | ---------------------------- | --------------------- |
-| DELETE | `/api/user/delete-all-chats` | Delete all user chats |
-| GET    | `/api/user/export-data`      | Export user data      |
+```
+DELETE /api/user/delete-all-chats - Delete all chats
+GET    /api/user/export-data      - Export user data
+```
 
-## Configuration Files
+---
 
-- `next.config.ts` - Next.js configuration
-- `tsconfig.json` - TypeScript configuration
-- `tailwind.config.ts` - Tailwind CSS configuration
-- `eslint.config.ts` - ESLint rules
-- `postcss.config.mjs` - PostCSS plugins
+## 🎯 Key Implementations
 
-## Key Features Implementation
+### ⚡ **Real-Time Streaming**
 
-### Real-time Message Updates
+- Backend: AsyncGenerator + ReadableStream
+- Frontend: fetch() + response.body.getReader()
+- UI updates on every token arrival
 
-- WebSocket-like behavior using Context API
-- Optimistic UI updates
-- Synchronized state across components
+### 🔊 **Voice State Management**
 
-### Voice Recognition & Synthesis
+- Guards against AI listening to its own voice
+- Only processes human speech
+- Seamless barge-in interruption
 
-- Web Speech API for voice input
-- Text-to-speech with multiple voices
-- Language detection and switching
+### 🎤 **Barge-In Support**
 
-### Chat History Management
+- Detects user speech while AI responding
+- Cancels speech synthesis instantly
+- Aborts streaming & processes new input
 
-- Smart grouping by time periods
-- Searchable chat history
-- Auto-generated titles from first message
+---
 
-### AI Model Selection
-
-- Runtime model switching
-- Support for multiple AI providers
-- Model-specific configurations
-
-## Deployment
+## 🚢 Deployment
 
 ### Vercel (Recommended)
 
@@ -255,100 +169,74 @@ vercel
 ### Docker
 
 ```bash
-docker build -t omega .
-docker run -p 3000:3000 omega
+docker build -t omega-ai .
+docker run -p 3000:3000 omega-ai
 ```
 
-### Manual Server
+### Manual
 
 ```bash
 npm run build
 npm start
 ```
 
-## Performance Optimizations
+---
 
-- Code splitting with Next.js
-- Image optimization
-- Lazy loading components
-- Efficient state management
-- Debounced search
+## 🤝 Contributing
 
-## Security
+We love contributions! Here's how you can help:
 
-- Clerk authentication
-- Protected API routes
-- Environment variable protection
-- CORS configuration
-- Input validation and sanitization
+1. **Fork** the repository
+2. **Create** a feature branch (`git checkout -b feature/amazing-feature`)
+3. **Commit** your changes (`git commit -m 'Add amazing feature'`)
+4. **Push** to branch (`git push origin feature/amazing-feature`)
+5. **Open** a Pull Request
 
-## Database Schema
+### Development Guidelines
 
-### Chat
+- Follow TypeScript strict mode
+- Use Prettier for formatting
+- Write meaningful commit messages
+- Test on mobile & desktop
 
-```
-{
-  _id: ObjectId,
-  userId: String,
-  name: String,
-  messages: [Message],
-  createdAt: Date,
-  updatedAt: Date
-}
-```
+---
 
-### Message
+## ⭐ Support This Project
 
-```
-{
-  role: 'user' | 'assistant',
-  content: String,
-  timestamp: Number,
-  isVoiceMessage: Boolean
-}
-```
+If this project helps you, please consider:
 
-### User
+- **Star** the repository ⭐
+- **Follow** on GitHub 👤
+- **Share** with others 📢
+- **Sponsor** development 💝
 
-```
-{
-  _id: ObjectId,
-  clerkId: String,
-  email: String,
-  name: String,
-  createdAt: Date,
-  updatedAt: Date
-}
-```
+---
 
-## Troubleshooting
+## 📝 License
 
-### Voice not working
+GNU General Public License v3.0 - see [LICENSE](LICENSE) file for details
 
-- Check browser microphone permissions
-- Ensure HTTPS in production
-- Test browser compatibility
+---
 
-### Messages not syncing
+## 👨‍💻 Author
 
-- Clear browser cache
-- Check database connection
-- Verify Clerk setup
+**Abhishek Prajapatt**
 
-### AI not responding
+- GitHub: [@abhishekprajapatt](https://github.com/abhishekprajapatt)
 
-- Verify API keys
-- Check network connectivity
-- Review API rate limits
+---
 
-## License
+## 🙏 Acknowledgments
 
-Private Repository - All rights reserved
+- Inspired by ChatGPT Voice Mode
+- Built with Next.js ecosystem
+- Voice APIs by Web Speech API
+- Icons by Lucide React
 
-## Author
+---
 
-Abhishek Prajapat
+<div align="center">
 
-## Support
+Made with ❤️ by Abhishek Prajapat
 
-For issues and feature requests, contact the development team.
+</div>

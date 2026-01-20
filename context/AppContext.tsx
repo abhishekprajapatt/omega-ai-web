@@ -447,7 +447,6 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
     console.log('🔊 TTS: Cleaned text length:', cleanedText.length);
     console.log('🔊 TTS: Cleaned text:', cleanedText.substring(0, 100));
 
-    // Check if text is valid for speech
     if (!cleanedText || cleanedText.length < 5) {
       console.warn('🔊 TTS: Text too short, skipping');
       setIsSpeaking(false);
@@ -455,7 +454,6 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
       return;
     }
 
-    // Skip pure whitespace
     if (/^[\s\n\r]*$/.test(cleanedText)) {
       console.warn('🔊 TTS: Text is only whitespace, skipping');
       setIsSpeaking(false);
@@ -463,7 +461,6 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
       return;
     }
 
-    // Skip pure code
     const codeKeywords = [
       'function',
       'const ',
@@ -486,17 +483,15 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
     }
 
     try {
-      // Cancel any ongoing speech
       if (speechSynthRef.current && speechSynthRef.current.speaking) {
         speechSynthRef.current.cancel();
         console.log('🔊 TTS: Cancelled previous speech');
       }
 
       const speechLang = detectLanguage(cleanedText) || detectedLang || 'en-US';
-      const maxChunkLength = 200; // Increased from 150 for better flow
+      const maxChunkLength = 200;
       const textChunks: string[] = [];
 
-      // Split text into chunks
       for (let i = 0; i < cleanedText.length; i += maxChunkLength) {
         textChunks.push(cleanedText.substring(i, i + maxChunkLength));
       }
@@ -524,7 +519,6 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
 
           const utterance = new SpeechSynthesisUtterance(chunk);
 
-          // Set voice
           if (selectedVoice) {
             utterance.voice = selectedVoice;
           } else {
@@ -539,9 +533,8 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
             }
           }
 
-          // Configure speech
           utterance.lang = speechLang;
-          utterance.rate = 0.95; // Slightly slower for clarity
+          utterance.rate = 0.95;
           utterance.pitch = 1.0;
           utterance.volume = 1.0;
 
@@ -555,11 +548,14 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
           };
 
           utterance.onerror = (e: SpeechSynthesisErrorEvent) => {
+            if (e.error === 'interrupted') {
+              console.log(`🔊 TTS: Chunk ${index + 1} interrupted (barge-in)`);
+              return;
+            }
             console.error(`🔊 TTS: Error in chunk ${index + 1}:`, e.error);
             setTimeout(() => speakNextChunk(index + 1), 200);
           };
 
-          // Queue the utterance
           speechSynthRef.current?.speak(utterance);
         } catch (chunkError) {
           console.error(`🔊 TTS: Exception in chunk ${index + 1}:`, chunkError);
@@ -576,6 +572,10 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
   };
 
   const speak = (text: string): void => {
+    if (!isContinuousListening) {
+      console.log('🔊 TTS: Speech disabled (isContinuousListening = false)');
+      return;
+    }
     if (!text || text.trim().length === 0) {
       console.warn('🔊 TTS: Empty text provided');
       return;
@@ -623,6 +623,14 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
       if (isContinuousListening) {
         SpeechRecognition.stopListening();
         setIsContinuousListening(false);
+        if (speechSynthRef.current && speechSynthRef.current.speaking) {
+          speechSynthRef.current.cancel();
+          setIsSpeaking(false);
+          isSpeakingRef.current = false;
+          console.log(
+            '🔊 TTS: Speech cancelled (isContinuousListening = false)',
+          );
+        }
         if (alwaysListening) {
           resetTranscript();
           SpeechRecognition.startListening({ continuous: true });
@@ -634,7 +642,9 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
         setHasInteracted(true);
 
         playNotificationSound().then(() => {
-          speakWithPriority(getRandomGreeting());
+          if (isContinuousListening) {
+            speakWithPriority(getRandomGreeting());
+          }
         });
       }
     } catch (error: unknown) {
@@ -646,7 +656,11 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
   const processTranscript = (currentTranscript: string): void => {
     if (!isClient) return;
     if (!currentTranscript) return;
-    if (isLoading || isSpeaking) return;
+    if (isLoading) return;
+    if (isSpeaking) {
+      console.log('🔊 Ignoring transcript (AI is speaking - system voice)');
+      return;
+    }
 
     const newPart = currentTranscript
       .slice(lastTranscriptRef.current.length)
@@ -693,12 +707,23 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
       }
 
       if (currentTranscript !== lastTranscriptRef.current) {
+        if (isSpeaking) {
+          console.log(
+            '🎤 BARGE-IN: User spoke while AI speaking - cancelling speech',
+          );
+          if (speechSynthRef.current && speechSynthRef.current.speaking) {
+            speechSynthRef.current.cancel();
+            setIsSpeaking(false);
+            isSpeakingRef.current = false;
+          }
+        }
+
         if (silenceTimerRef.current) {
           clearTimeout(silenceTimerRef.current);
         }
 
         silenceTimerRef.current = setTimeout(() => {
-          if (currentTranscript.trim() && !isSpeaking && !isLoading) {
+          if (currentTranscript.trim() && !isLoading) {
             console.log(
               'Silence detected, processing command:',
               currentTranscript,
@@ -878,137 +903,179 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
       });
 
       setIsWriting(true);
-      const token = await getToken();
-      const response: AxiosResponse<ApiResponse<{ content: string }>> =
-        await axios.post(
-          '/api/chat/ai',
-          {
+
+      let assistantMessage: Message = {
+        role: 'assistant',
+        content: '',
+        timestamp: Date.now(),
+        isVoiceMessage: isVoiceInput,
+      };
+
+      setSelectedChat((prev: Chat | null): Chat | null => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          messages: [...prev.messages, assistantMessage],
+        };
+      });
+
+      setChats((prevChats: Chat[]) =>
+        prevChats.map((chat: Chat) =>
+          chat._id === chatId
+            ? {
+                ...chat,
+                messages: [...chat.messages, assistantMessage],
+              }
+            : chat,
+        ),
+      );
+
+      let fullContent = '';
+      let shouldAutoSpeak = isVoiceInput || isContinuousListening;
+      let autoSpeakContent = '';
+
+      try {
+        const token = await getToken();
+
+        const response = await fetch('/api/chat/ai', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
             chatId: chatId,
             prompt: finalPrompt,
             images: images,
             model: selectedModel,
-          },
-          {
-            headers: { Authorization: `Bearer ${token}` },
-          },
-        );
-
-      const { data } = response;
-
-      if (data.success && data.data) {
-        const message = data.data?.content ?? '';
-        const isFromFallback = (data.data as any)?.isFromFallback ?? false;
-
-        // Show toast if response is from fallback
-        if (isFromFallback) {
-          toast.success('Using local fallback model for response', {
-            position: 'top-right',
-            duration: 4000,
-          });
-        }
-
-        let assistantMessage: Message = {
-          role: 'assistant',
-          content: '',
-          timestamp: Date.now(),
-          isVoiceMessage: isVoiceInput,
-        };
-
-        setSelectedChat((prev: Chat | null): Chat | null => {
-          if (!prev) return prev;
-          return {
-            ...prev,
-            messages: [...prev.messages, assistantMessage],
-          };
+          }),
         });
 
-        setChats((prevChats: Chat[]) =>
-          prevChats.map((chat: Chat) =>
-            chat._id === chatId
-              ? {
-                  ...chat,
-                  messages: [...chat.messages, assistantMessage],
-                }
-              : chat,
-          ),
-        );
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
 
-        // ✅ AUTO-SPEAK: Speak response if voice mode is enabled OR voice input was used
-        if (message && (isVoiceInput || isContinuousListening)) {
+        if (!response.body) {
+          throw new Error('Response body is null');
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+
+        while (true) {
+          const { done, value } = await reader.read();
+
+          if (done) break;
+
+          const chunk = decoder.decode(value, { stream: true });
+          fullContent += chunk;
+          autoSpeakContent += chunk;
+
+          setSelectedChat((prev: Chat | null): Chat | null => {
+            if (!prev) return prev;
+
+            const updatedMessages = prev.messages.map(
+              (msg: Message, index: number) => {
+                if (
+                  index === prev.messages.length - 1 &&
+                  msg.role === 'assistant'
+                ) {
+                  return { ...msg, content: fullContent };
+                }
+                return msg;
+              },
+            );
+
+            return { ...prev, messages: updatedMessages };
+          });
+
+          setChats((prevChats: Chat[]) =>
+            prevChats.map((chat: Chat) =>
+              chat._id === chatId
+                ? {
+                    ...chat,
+                    messages: chat.messages.map(
+                      (msg: Message, index: number) => {
+                        if (
+                          index === chat.messages.length - 1 &&
+                          msg.role === 'assistant'
+                        ) {
+                          return { ...msg, content: fullContent };
+                        }
+                        return msg;
+                      },
+                    ),
+                  }
+                : chat,
+            ),
+          );
+        }
+
+        const final = decoder.decode();
+        if (final) {
+          fullContent += final;
+          autoSpeakContent += final;
+
+          setSelectedChat((prev: Chat | null): Chat | null => {
+            if (!prev) return prev;
+
+            const updatedMessages = prev.messages.map(
+              (msg: Message, index: number) => {
+                if (
+                  index === prev.messages.length - 1 &&
+                  msg.role === 'assistant'
+                ) {
+                  return { ...msg, content: fullContent };
+                }
+                return msg;
+              },
+            );
+
+            return { ...prev, messages: updatedMessages };
+          });
+
+          setChats((prevChats: Chat[]) =>
+            prevChats.map((chat: Chat) =>
+              chat._id === chatId
+                ? {
+                    ...chat,
+                    messages: chat.messages.map(
+                      (msg: Message, index: number) => {
+                        if (
+                          index === chat.messages.length - 1 &&
+                          msg.role === 'assistant'
+                        ) {
+                          return { ...msg, content: fullContent };
+                        }
+                        return msg;
+                      },
+                    ),
+                  }
+                : chat,
+            ),
+          );
+        }
+
+        if (fullContent && shouldAutoSpeak) {
           console.log(
             '🔊 AUTO-SPEAK: Triggered (voice input or continuous listening)',
           );
           setTimeout(() => {
-            speak(message);
-          }, 500); // Delay to ensure response is rendered first
+            speak(fullContent);
+          }, 100);
         }
 
-        const messageTokens = message.split(' ');
-        const newTimeouts: NodeJS.Timeout[] = [];
-
-        const wordsPerMinute = 150;
-        const millisecondsPerWord = (60 * 1000) / wordsPerMinute;
-
-        for (let i = 0; i < messageTokens.length; i++) {
-          const timeout = setTimeout(() => {
-            const updatedContent = messageTokens.slice(0, i + 1).join(' ');
-
-            setSelectedChat((prev: Chat | null): Chat | null => {
-              if (!prev) return prev;
-
-              const updatedMessages = prev.messages.map(
-                (msg: Message, index: number) => {
-                  if (
-                    index === prev.messages.length - 1 &&
-                    msg.role === 'assistant'
-                  ) {
-                    return { ...msg, content: updatedContent };
-                  }
-                  return msg;
-                },
-              );
-
-              return { ...prev, messages: updatedMessages };
-            });
-
-            setChats((prevChats: Chat[]) =>
-              prevChats.map((chat: Chat) =>
-                chat._id === chatId
-                  ? {
-                      ...chat,
-                      messages: chat.messages.map(
-                        (msg: Message, index: number) => {
-                          if (
-                            index === chat.messages.length - 1 &&
-                            msg.role === 'assistant'
-                          ) {
-                            return { ...msg, content: updatedContent };
-                          }
-                          return msg;
-                        },
-                      ),
-                    }
-                  : chat,
-              ),
-            );
-
-            if (i === messageTokens.length - 1) {
-              setTimeout(() => {
-                setIsWriting(false);
-              }, millisecondsPerWord);
-            }
-          }, i * millisecondsPerWord);
-
-          newTimeouts.push(timeout);
-        }
-
-        setTextUpdateTimeouts(newTimeouts);
+        setIsWriting(false);
 
         if (shouldGenerateTitle) {
           generateChatTitle(chatId, finalPrompt);
         }
-      } else {
-        toast.error(data.message || 'Failed to get response');
+      } catch (error: any) {
+        if (error instanceof DOMException && error.name === 'AbortError') {
+          console.log('Streaming aborted by user');
+        } else {
+          toast.error('Failed to get response');
+        }
         setIsWriting(false);
       }
     } catch (error: unknown) {
