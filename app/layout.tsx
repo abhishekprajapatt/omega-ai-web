@@ -4,7 +4,7 @@ import { Suspense } from 'react';
 import type { Metadata } from 'next';
 import { Inter, Syne } from 'next/font/google';
 import { Toaster } from 'react-hot-toast';
-import { ClerkProvider } from '@clerk/nextjs';
+import { AuthProvider } from '@/context/FirebaseAuthContext';
 import { AppContextProvider } from '@/context/AppContext';
 import SkeletonLoading from '@/components/SkeletonLoading';
 import CookieConsent from '@/components/CookieConsent';
@@ -32,7 +32,7 @@ interface RootLayoutProps {
 
 export default function RootLayout({ children }: RootLayoutProps) {
   return (
-    <ClerkProvider>
+    <AuthProvider>
       <AppContextProvider>
         <html lang="en">
           <body className={`${inter.variable} ${syne.variable} antialiased`}>
@@ -47,6 +47,6 @@ export default function RootLayout({ children }: RootLayoutProps) {
           </body>
         </html>
       </AppContextProvider>
-    </ClerkProvider>
+    </AuthProvider>
   );
 }

@@ -2,14 +2,9 @@ import { assets } from '@/assets/assets';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { IoSettingsSharp } from 'react-icons/io5';
-import { useClerk, UserButton } from '@clerk/nextjs';
+import { useFirebaseAuth } from '@/context/FirebaseAuthContext';
 import React, { useEffect, useState, MouseEvent, useRef } from 'react';
-import {
-  FaInstagram,
-  FaDownload,
-  FaXTwitter,
-  FaLinkedin,
-} from 'react-icons/fa6';
+import { FaInstagram, FaDownload, FaLinkedin } from 'react-icons/fa6';
 import { GrSend } from 'react-icons/gr';
 import { MdLogout } from 'react-icons/md';
 import ChatLabel from '@/components/ChatLabel';
@@ -17,6 +12,7 @@ import { getTranslation } from '@/lib/translations';
 import { FaReddit, FaDiscord } from 'react-icons/fa';
 import { useAppContext } from '@/context/AppContext';
 import SettingsModal from '@/components/SettingsModal';
+import toast from 'react-hot-toast';
 
 interface Chat {
   _id: string;
@@ -54,9 +50,8 @@ interface SidebarProps {
   setExpand: (expand: boolean) => void;
 }
 
-
 const Sidebar: React.FC<SidebarProps> = ({ expand, setExpand }) => {
-  const { openSignIn, signOut } = useClerk();
+  const { signOut } = useFirebaseAuth();
   const router = useRouter();
   const {
     user,
@@ -93,9 +88,6 @@ const Sidebar: React.FC<SidebarProps> = ({ expand, setExpand }) => {
     e.stopPropagation();
 
     if (!selectedChat) {
-      if (isClient && !user) {
-        openSignIn();
-      }
       return;
     }
 
@@ -124,10 +116,6 @@ const Sidebar: React.FC<SidebarProps> = ({ expand, setExpand }) => {
       };
 
       chats.forEach((chat: Chat) => {
-        if (!chat.messages || chat.messages.length === 0) {
-          return;
-        }
-
         const chatDate = new Date(chat.updatedAt || new Date());
         if (chatDate >= oneHourAgo) {
           grouped.recent.push(chat);
@@ -202,11 +190,7 @@ const Sidebar: React.FC<SidebarProps> = ({ expand, setExpand }) => {
 
   const handleNewChatClick = (e: MouseEvent<HTMLButtonElement>): void => {
     e.stopPropagation();
-    if (isClient && !user) {
-      openSignIn();
-    } else {
-      router.push('/');
-    }
+    router.push('/');
   };
 
   return (
@@ -230,8 +214,14 @@ const Sidebar: React.FC<SidebarProps> = ({ expand, setExpand }) => {
             alt="Omega Logo"
             width={expand ? 144 : 32}
             height={32}
-            className={expand ? 'w-36' : 'w-8 cursor-e-resize rounded-full'}
-            onClick={!expand ? handleToggleSidebar : undefined}
+            className={
+              expand
+                ? 'w-36'
+                : 'cursor-pointer h-9 w-9 hover:bg-gray-500/20 rounded-lg'
+            }
+            onClick={
+              !expand ? (e) => handleNewChatClickWithCheck(e as any) : undefined
+            }
           />
           <div
             onClick={handleToggleSidebar}
@@ -257,15 +247,15 @@ const Sidebar: React.FC<SidebarProps> = ({ expand, setExpand }) => {
             />
             <div
               className={`absolute w-max ${
-                expand ? 'left-1/2 -translate-x-1/2 top-12' : '-top-2 left-0'
-              } opacity-0 group-hover:opacity-100 transition bg-black text-white text-sm px-3 py-2 rounded-lg shadow-lg pointer-events-none z-10`}
+                expand ? 'left-12/4 -translate-x-1/2 -top-1' : '-top-1 left-10'
+              } opacity-0 group-hover:opacity-100 transition bg-black font-head font-bold border border-white/20 text-white text-sm px-3 py-2 rounded-lg shadow-lg pointer-events-none z-10`}
             >
               {expand ? 'Close sidebar' : 'Open sidebar'}
               <div
-                className={`w-3 h-3 absolute bg-black rotate-45 ${
+                className={`w-3 h-3 absolute bg-black rotate-45 border-white/20  ${
                   expand
-                    ? 'left-1/2 -top-1.5 -translate-x-1/2'
-                    : 'left-4 -bottom-1.5'
+                    ? 'left-0 top-3 -translate-x-1/2 border-b border-l'
+                    : 'border-b border-l -left-1.5 bottom-2.5'
                 }`}
               />
             </div>
@@ -274,12 +264,13 @@ const Sidebar: React.FC<SidebarProps> = ({ expand, setExpand }) => {
         <button
           onClick={handleNewChatClickWithCheck}
           disabled={isNewChatDisabled}
+          suppressHydrationWarning
           className={`flex items-center justify-center cursor-pointer transition-all ${
             isNewChatDisabled ? 'opacity-50 cursor-not-allowed' : ''
           } ${
             expand
               ? 'bg-primary hover:opacity-90 rounded-xl gap-2 p-2 w-max disabled:hover:opacity-50'
-              : 'group relative h-9 w-9 mx-auto hover:bg-gray-500/30 rounded-lg disabled:hover:bg-transparent'
+              : 'group relative h-9 w-9 mx-auto hover:bg-gray-500/20 rounded-lg disabled:hover:bg-transparent'
           }`}
           title={
             !selectedChat
@@ -301,13 +292,13 @@ const Sidebar: React.FC<SidebarProps> = ({ expand, setExpand }) => {
             className={expand ? 'w-6' : 'w-7'}
           />
           {!expand && (
-            <div className="absolute w-max -top-12 -right-12 opacity-0 group-hover:opacity-100 transition bg-black text-white text-sm px-3 py-2 rounded-lg shadow-lg pointer-events-none z-10">
+            <div className="absolute w-max -top-1 -right-26 opacity-0 group-hover:opacity-100 transition bg-black text-white font-head font-bold border border-white/20 text-sm px-3 py-2 rounded-lg shadow-lg pointer-events-none z-10">
               {!selectedChat
                 ? 'Login first'
                 : isNewChatDisabled
                   ? 'Send a message first'
                   : getTranslation(detectedLang, 'newChat')}
-              <div className="w-3 h-3 absolute bg-black rotate-45 left-4 -bottom-1.5" />
+              <div className="w-3 h-3 absolute bg-black rotate-45 -left-1.5 border-b border-l border-white/20 bottom-2.5" />
             </div>
           )}
           {expand && (
@@ -358,13 +349,10 @@ const Sidebar: React.FC<SidebarProps> = ({ expand, setExpand }) => {
                       {getTranslation(detectedLang, 'searchResults')}
                     </p>
                     {chats
-                      .filter(
-                        (chat) =>
-                          chat.messages &&
-                          chat.messages.length > 0 &&
-                          chat.name
-                            .toLowerCase()
-                            .includes(searchQuery.toLowerCase()),
+                      .filter((chat) =>
+                        chat.name
+                          .toLowerCase()
+                          .includes(searchQuery.toLowerCase()),
                       )
                       .sort((a, b) => {
                         const dateA = new Date(
@@ -384,13 +372,10 @@ const Sidebar: React.FC<SidebarProps> = ({ expand, setExpand }) => {
                           setOpenMenu={setOpenMenu}
                         />
                       ))}
-                    {chats.filter(
-                      (chat) =>
-                        chat.messages &&
-                        chat.messages.length > 0 &&
-                        chat.name
-                          .toLowerCase()
-                          .includes(searchQuery.toLowerCase()),
+                    {chats.filter((chat) =>
+                      chat.name
+                        .toLowerCase()
+                        .includes(searchQuery.toLowerCase()),
                     ).length === 0 && (
                       <p className="text-white/25 my-4 text-sm">
                         {getTranslation(detectedLang, 'noMatchingChats')}
@@ -435,91 +420,26 @@ const Sidebar: React.FC<SidebarProps> = ({ expand, setExpand }) => {
         </div>
 
         <div className="py-2 mt-auto">
-          {!expand && user && (
-            <div className="flex flex-col items-center gap-2 py-4 border-t border-white/10">
-              <button
-                onClick={() =>
-                  window.open(
-                    'https://instagram.com/abhishekprajapatt',
-                    '_blank',
-                  )
-                }
-                className="h-9 w-9 flex items-center justify-center hover:bg-gray-500/30 rounded-lg transition"
-                title="Instagram"
-              >
-                <FaInstagram
-                  size={20}
-                  className="text-white/60 hover:text-white"
-                />
-              </button>
-              <button
-                onClick={() =>
-                  window.open('https://twitter.com/abhishekprajapatt', '_blank')
-                }
-                className="h-9 w-9 flex items-center justify-center hover:bg-gray-500/30 rounded-lg transition"
-                title="Twitter"
-              >
-                <FaXTwitter
-                  size={20}
-                  className="text-white/60 hover:text-white"
-                />
-              </button>
-              <button
-                onClick={() =>
-                  window.open(
-                    'https://linkedin.com/in/abhishekprajapatt',
-                    '_blank',
-                  )
-                }
-                className="h-9 w-9 flex items-center justify-center hover:bg-gray-500/30 rounded-lg transition"
-                title="LinkedIn"
-              >
-                <FaLinkedin
-                  size={20}
-                  className="text-white/60 hover:text-white"
-                />
-              </button>
-              <button
-                onClick={() =>
-                  window.open('https://discord.gg/omega', '_blank')
-                }
-                className="h-9 w-9 flex items-center justify-center hover:bg-gray-500/30 rounded-lg transition"
-                title="Discord"
-              >
-                <FaDiscord
-                  size={20}
-                  className="text-white/60 hover:text-white"
-                />
-              </button>
-              <button
-                onClick={() =>
-                  window.open(
-                    'https://reddit.com/u/abhishekprajapatt',
-                    '_blank',
-                  )
-                }
-                className="h-9 w-9 flex items-center justify-center hover:bg-gray-500/30 rounded-lg transition"
-                title="Reddit"
-              >
-                <FaReddit
-                  size={20}
-                  className="text-white/60 hover:text-white"
-                />
-              </button>
-            </div>
-          )}
-
           <div
-            className={`flex items-center cursor-pointer ${
+            className={`flex items-center ${
               expand
-                ? 'hover:bg-white/10 rounded-lg justify-between'
-                : 'justify-center w-full border-t border-white/10 pt-4'
+                ? 'hover:bg-gray-500/10 rounded-lg justify-between'
+                : 'justify-center w-full pt-4'
             } gap-3 text-white/60 text-sm p-2`}
-            onClick={!user ? () => openSignIn() : undefined}
+            onClick={!user ? () => router.push('/') : undefined}
           >
-            <div className="flex items-center gap-3">
+            <div
+              className="flex items-center gap-3"
+              onClick={() => setShowUserMenu(!showUserMenu)}
+            >
               {user ? (
-                <UserButton />
+                <Image
+                  src={user.photoURL || assets.profile_icon}
+                  alt="Profile"
+                  width={28}
+                  height={28}
+                  className="w-7 rounded-full cursor-pointer"
+                />
               ) : (
                 <Image
                   src={assets.profile_icon as string}
@@ -527,16 +447,16 @@ const Sidebar: React.FC<SidebarProps> = ({ expand, setExpand }) => {
                   width={28}
                   height={28}
                   className="w-7 cursor-pointer"
-                  onClick={() => openSignIn()}
+                  onClick={() => router.push('/')}
                 />
               )}
               {expand && (
                 <span className="text-sm font-head cursor-pointer">
-                  {user ? `${user?.firstName || ''}` : 'Login'}
+                  {user ? `${user?.displayName || ''}` : 'Login'}
                 </span>
               )}
             </div>
-            {user && expand && (
+            {expand && (
               <Image
                 src={assets.three_dots as string}
                 alt="Menu"
@@ -548,34 +468,31 @@ const Sidebar: React.FC<SidebarProps> = ({ expand, setExpand }) => {
             )}
           </div>
 
-          {expand && showUserMenu && (
+          {user && showUserMenu && (
             <div
               ref={userMenuRef}
-              className={`absolute bottom-8 ${
-                expand ? 'left-4' : 'left-20'
-              } bg-[#121212] rounded-xl w-max p-2 z-10 shadow-lg select-none`}
+              className={`absolute ${
+                expand ? 'left-4 bottom-18 ' : 'left-11 bottom-4'
+              } bg-[#121212] border border-gray-500/20 rounded-xl w-max p-2 z-10 shadow-lg select-none`}
             >
               <button
-                className={`flex items-center cursor-pointer group relative ${
-                  expand
-                    ? 'gap-2 text-white/80 text-sm p-2.5 border border-primary rounded-lg hover:bg-white/10'
-                    : 'h-10 w-10 mx-auto hover:bg-gray-500/30 rounded-lg'
-                }`}
+                onClick={() =>
+                  window.open('https://omg-ai.vercel.app', '_blank')
+                }
+                className="w-full flex items-center gap-3 font-head text-white/80 text-sm p-3 rounded-lg hover:bg-gray-500/20 transition cursor-pointer group relative"
               >
-                <FaDownload
-                  onClick={() =>
-                    window.open('https://omg-ai.vercel.app', '_blank')
-                  }
-                  size={expand ? 20 : 26}
-                  height={26}
-                  className={expand ? 'w-5' : 'w-6.5 mx-auto'}
+                <FaDownload size={16} />
+                <span>{getTranslation(detectedLang, 'downloadApp')}</span>
+                <Image
+                  src={assets.new_icon as string}
+                  alt="New"
+                  width={16}
+                  height={16}
                 />
                 <div
-                  className={`absolute -top-60 pb-8 ${
-                    !expand && '-right-52'
-                  } opacity-0 group-hover:opacity-100 hidden md:group-hover:block transition-all`}
+                  className={`absolute -top-60 pb-8 opacity-0 group-hover:opacity-100 hidden md:group-hover:block transition-all`}
                 >
-                  <div className="relative w-max bg-black text-white text-sm p-3 rounded-lg shadow-lg">
+                  <div className="relative w-max bg-black border border-gray-500/20 text-white text-sm p-3 rounded-lg shadow-lg">
                     <Image
                       src={assets.qrcode}
                       alt="QR Code"
@@ -586,26 +503,9 @@ const Sidebar: React.FC<SidebarProps> = ({ expand, setExpand }) => {
                     <p className="text-xs text-white/40 mt-2">
                       Scan to download the app
                     </p>
-                    <div
-                      className={`w-3 h-3 absolute bg-black rotate-45 ${
-                        expand ? 'right-1/2 -translate-x-1/2' : 'left-4'
-                      } -bottom-1.5`}
-                    />
+                    <div className="w-3 h-3 border-b border-r border-gray-500/20 absolute bg-black rotate-45 right-1/2 -translate-x-1/2 -bottom-1.5" />
                   </div>
                 </div>
-                {expand && (
-                  <>
-                    <span className="text-sm font-head">
-                      {getTranslation(detectedLang, 'downloadApp')}
-                    </span>
-                    <Image
-                      src={assets.new_icon as string}
-                      alt="New"
-                      width={20}
-                      height={20}
-                    />
-                  </>
-                )}
               </button>
 
               <button
@@ -619,16 +519,6 @@ const Sidebar: React.FC<SidebarProps> = ({ expand, setExpand }) => {
               >
                 <FaInstagram size={16} />
                 <span>{getTranslation(detectedLang, 'instagram')}</span>
-              </button>
-
-              <button
-                onClick={() =>
-                  window.open('https://twitter.com/abhishekprax', '_blank')
-                }
-                className="w-full flex items-center gap-3 font-head text-white/80 text-sm p-3 rounded-lg hover:bg-gray-500/20 transition cursor-pointer"
-              >
-                <FaXTwitter size={16} />
-                <span>Twitter</span>
               </button>
 
               <button
@@ -678,7 +568,7 @@ const Sidebar: React.FC<SidebarProps> = ({ expand, setExpand }) => {
               <button
                 onClick={() => {
                   window.location.href =
-                    'mailto:prajapattabhishek@gmail.com?subject=Contact from Omega App';
+                    'mailto:visionex.app@gmail.com?subject=Contact from Omega App';
                 }}
                 className="w-full flex font-head items-center gap-3 text-white/80 text-sm p-3 rounded-lg hover:bg-gray-500/20 transition cursor-pointer"
               >
@@ -688,13 +578,24 @@ const Sidebar: React.FC<SidebarProps> = ({ expand, setExpand }) => {
 
               <button
                 onClick={async () => {
-                  await signOut({ redirectUrl: '/' });
+                  try {
+                    await signOut();
+                    router.push('/');
+                  } catch (error) {
+                    toast.error('Failed to logout');
+                    console.error('Logout error:', error);
+                  }
                 }}
                 className="w-full flex items-center gap-3 font-head text-white/80 text-sm p-3 rounded-lg hover:bg-red-500/20 transition cursor-pointer"
               >
                 <MdLogout size={16} />
                 <span>{getTranslation(detectedLang, 'logoutButton')}</span>
               </button>
+              <div
+                className={`bg-[#121212]  border-gray-500/20 absolute rotate-45 -translate-x-1/2 ${
+                  expand ? 'w-3 h-3 border-b border-r left-5 -bottom-1.5 ' : 'w-2.5 h-2.5 border-b border-l left-0 bottom-2'
+                }`}
+              />
             </div>
           )}
 

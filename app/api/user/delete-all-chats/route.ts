@@ -1,6 +1,6 @@
 import Chat from '@/models/Chat';
 import connectDB from '@/config/db';
-import { getAuth } from '@clerk/nextjs/server';
+import { getUserIdFromRequest } from '@/lib/firebaseAuth';
 import { NextRequest, NextResponse } from 'next/server';
 
 interface DeleteResponse {
@@ -11,15 +11,15 @@ interface DeleteResponse {
 }
 
 export async function DELETE(
-  req: NextRequest
+  req: NextRequest,
 ): Promise<NextResponse<DeleteResponse>> {
   try {
-    const { userId } = getAuth(req);
+    const userId = await getUserIdFromRequest(req);
 
     if (!userId) {
       return NextResponse.json(
         { success: false, error: 'User not authenticated' },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -36,7 +36,7 @@ export async function DELETE(
     console.error('Delete all chats error:', error);
     return NextResponse.json(
       { success: false, error: error.message || 'Failed to delete chats' },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

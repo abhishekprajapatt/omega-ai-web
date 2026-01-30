@@ -1,6 +1,6 @@
 import Chat from '@/models/Chat';
 import connectDB from '@/config/db';
-import { getAuth } from '@clerk/nextjs/server';
+import { getUserIdFromRequest } from '@/lib/firebaseAuth';
 import { NextRequest, NextResponse } from 'next/server';
 
 interface ExportResponse {
@@ -10,15 +10,15 @@ interface ExportResponse {
 }
 
 export async function GET(
-  req: NextRequest
+  req: NextRequest,
 ): Promise<NextResponse<ExportResponse>> {
   try {
-    const { userId } = getAuth(req);
+    const userId = await getUserIdFromRequest(req);
 
     if (!userId) {
       return NextResponse.json(
         { success: false, error: 'User not authenticated' },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
@@ -39,7 +39,7 @@ export async function GET(
       totalChats: chats.length,
       totalMessages: chats.reduce(
         (sum: number, chat: any) => sum + (chat.messages?.length || 0),
-        0
+        0,
       ),
     };
 
@@ -51,7 +51,7 @@ export async function GET(
     console.error('Export data error:', error);
     return NextResponse.json(
       { success: false, error: error.message || 'Failed to export data' },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

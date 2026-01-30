@@ -350,7 +350,7 @@ ${finalHtml}
     return (
       <div className="flex flex-col items-center w-full max-w-3xl text-sm">
         {}
-        <div className="flex flex-col w-full mb-8 items-end">
+        <div className="flex flex-col w-full mb-4 items-end">
           <div className="w-full max-w-2xl relative">
             <textarea
               value={editedContent}
@@ -385,7 +385,7 @@ ${finalHtml}
   return (
     <div className="flex flex-col items-center w-full max-w-3xl text-sm">
       <div
-        className={`flex flex-col w-full mb-8 ${
+        className={`flex flex-col w-full mb-4 ${
           role === 'user' ? 'items-end' : ''
         }`}
       >

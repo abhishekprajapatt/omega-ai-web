@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuth } from '@clerk/nextjs/server';
+import { getUserIdFromRequest } from '@/lib/firebaseAuth';
 
 interface STTRequestBody {
   audio: string;
@@ -51,7 +51,7 @@ async function transcribeWithOpenAI(
   const data = await response.json();
   return {
     text: data.text,
-    confidence: 0.95, 
+    confidence: 0.95,
   };
 }
 
@@ -146,7 +146,7 @@ async function transcribeWithDeepgram(
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   try {
-    const { userId } = getAuth(req);
+    const userId = await getUserIdFromRequest(req);
 
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

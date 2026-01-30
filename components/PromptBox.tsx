@@ -9,7 +9,7 @@ import React, {
 } from 'react';
 import { mirage } from 'ldrs';
 import Image from 'next/image';
-import { useClerk } from '@clerk/nextjs';
+import { useRouter } from 'next/navigation';
 import { ImOmega } from 'react-icons/im';
 import { MdAddBox } from 'react-icons/md';
 import type { StaticImageData } from 'next/image';
@@ -54,6 +54,7 @@ interface AppContextType {
 }
 
 const PromptBox: React.FC = () => {
+  const router = useRouter();
   const [prompt, setPrompt] = useState<string>('');
   const [isModelOpen, setIsModelOpen] = useState<boolean>(false);
   const [modelSearch, setModelSearch] = useState<string>('');
@@ -87,8 +88,6 @@ const PromptBox: React.FC = () => {
     browserSupportsSpeechRecognition,
     isMicrophoneAvailable,
   } = useSpeechRecognition();
-
-  const { openSignIn } = useClerk();
 
   useEffect(() => {
     const handleClickOutside = (event: Event) => {
@@ -164,9 +163,31 @@ const PromptBox: React.FC = () => {
     [handleSendPrompt],
   );
 
-  const handleToggleContinuousListening = useCallback((): void => {
-    toggleContinuousListeningContext();
-  }, [toggleContinuousListeningContext]);
+  const handleToggleContinuousListening =
+    useCallback(async (): Promise<void> => {
+      if (!isContinuousListening) {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({
+            audio: true,
+          });
+          stream.getTracks().forEach((track) => track.stop());
+          await toggleContinuousListeningContext();
+        } catch (error: any) {
+          if (error.name === 'NotAllowedError') {
+            toast.error(
+              'Microphone permission denied. Please enable it in settings.',
+            );
+          } else if (error.name === 'NotFoundError') {
+            toast.error('No microphone found on your device.');
+          } else {
+            toast.error('Unable to access microphone.');
+          }
+          console.error('Microphone access error:', error);
+        }
+      } else {
+        await toggleContinuousListeningContext();
+      }
+    }, [toggleContinuousListeningContext, isContinuousListening]);
 
   useEffect(() => {
     if (!isClient) return;
@@ -206,11 +227,6 @@ const PromptBox: React.FC = () => {
     );
   }
 
-  const uniqueLangs: string[] =
-    voices.length > 0
-      ? Array.from(new Set(voices.map((v) => v.lang)))
-      : ['en-US'];
-
   return (
     <form
       onSubmit={handleSendPrompt}
@@ -227,7 +243,6 @@ const PromptBox: React.FC = () => {
         value={prompt}
       />
 
-      {/* Image Preview */}
       {uploadedImages.length > 0 && (
         <div className="mt-3 flex flex-wrap gap-2">
           {uploadedImages.map((img, idx) => (
@@ -272,7 +287,6 @@ const PromptBox: React.FC = () => {
             OMEGA
           </p>
 
-          {/* Model Selector Dropdown */}
           <div className="relative" data-model-selector>
             <button
               type="button"
@@ -379,16 +393,13 @@ const PromptBox: React.FC = () => {
                 speed: '2.5',
                 color: 'white',
               })}
-            {isContinuousListening && (
-              <VoiceInputModal
-                isContinuousListening={isContinuousListening}
-                toggleContinuousListening={handleToggleContinuousListening}
-                className={isContinuousListening ? '' : 'hidden'}
-                isSpeaking={isSpeaking}
-                isLoading={isLoading}
-                setIsLoading={setIsLoading}
-              />
-            )}
+            <VoiceInputModal
+              isContinuousListening={isContinuousListening}
+              toggleContinuousListening={handleToggleContinuousListening}
+              isSpeaking={isSpeaking}
+              isLoading={isLoading}
+              setIsLoading={setIsLoading}
+            />
           </div>
         </div>
 
@@ -416,7 +427,7 @@ const PromptBox: React.FC = () => {
                 } rounded-full p-2 cursor-pointer`}
               >
                 <ArrowUp size={20} />
-              </button> 
+              </button>
             </div>
           ) : (
             <div className="relative group flex items-center justify-center">
@@ -427,11 +438,13 @@ const PromptBox: React.FC = () => {
               <button
                 type="button"
                 title="Toggle voice input"
-                onClick={() =>
-                  isClient && !user
-                    ? openSignIn()
-                    : handleToggleContinuousListening()
-                }
+                onClick={() => {
+                  if (isClient && !user) {
+                    router.push('/');
+                  } else {
+                    handleToggleContinuousListening();
+                  }
+                }}
                 className={`rounded-lg p-2 cursor-pointer text-white ${
                   isContinuousListening
                     ? 'bg-slate-500'

@@ -22,7 +22,18 @@ const VoiceInputModal: React.FC<VoiceInputModalProps> = ({
 }) => {
   const audioVisualizerRef = useRef<HTMLCanvasElement>(null);
   const [mode, setMode] = useState<Mode>('text');
+  const [isClosing, setIsClosing] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const prevModeRef = useRef<Mode>('text');
+  const userClickedOpenRef = useRef(false);
+
+  useEffect(() => {
+    if (isContinuousListening && !userClickedOpenRef.current) {
+      userClickedOpenRef.current = true;
+      setIsModalOpen(true);
+      setIsClosing(false);
+    }
+  }, [isContinuousListening]);
 
   useEffect(() => {
     let newMode: Mode = 'text';
@@ -31,6 +42,8 @@ const VoiceInputModal: React.FC<VoiceInputModalProps> = ({
     } else if (isSpeaking) {
       newMode = 'speaking';
     } else if (isContinuousListening) {
+      newMode = 'listening';
+    } else if (userClickedOpenRef.current) {
       newMode = 'listening';
     }
 
@@ -61,7 +74,7 @@ const VoiceInputModal: React.FC<VoiceInputModalProps> = ({
           0,
           centerX,
           centerY,
-          radius
+          radius,
         );
 
         gradient.addColorStop(0, '#E1F5FE');
@@ -115,16 +128,24 @@ const VoiceInputModal: React.FC<VoiceInputModalProps> = ({
     };
   }, [mode]);
 
-  if (mode === 'text') return null;
+  if (!isModalOpen) return null;
 
   const handleClose = (e: MouseEvent<HTMLButtonElement>): void => {
     e.stopPropagation();
-    toggleContinuousListening();
+    setIsClosing(true);
+    userClickedOpenRef.current = false;
+    setTimeout(() => {
+      setIsModalOpen(false);
+      setIsClosing(false);
+      toggleContinuousListening();
+    }, 300);
   };
 
   return (
     <div
-      className={`fixed inset-0 bg-black flex items-center justify-center z-50 ${className}`}
+      className={`fixed inset-0 bg-black flex items-center justify-center z-50 transition-all duration-300 ${
+        isClosing ? 'opacity-0 pointer-events-none' : 'opacity-100'
+      } ${className}`}
     >
       <div
         className={`absolute top-8 right-[5%] ${

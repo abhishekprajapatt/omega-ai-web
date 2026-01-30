@@ -5,6 +5,7 @@ import { assets } from '@/assets/assets';
 import { useRouter } from 'next/navigation';
 import axios, { AxiosResponse } from 'axios';
 import { useAppContext } from '@/context/AppContext';
+import { useFirebaseAuth } from '@/context/FirebaseAuthContext';
 import React, { useState, useEffect, useRef } from 'react';
 
 interface ChatMessage {
@@ -57,6 +58,7 @@ const ChatLabel: React.FC<ChatLabelProps> = ({
     renamingChatId,
     setRenamingChatId,
   } = useAppContext();
+  const { getIdToken } = useFirebaseAuth();
   const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
   const [showRenameModal, setShowRenameModal] = useState<boolean>(false);
   const [renameInput, setRenameInput] = useState<string>(name);
@@ -67,12 +69,12 @@ const ChatLabel: React.FC<ChatLabelProps> = ({
     const autoGenerateTitle = async (): Promise<void> => {
       if (name === 'New Chat') {
         const chatData: Chat | undefined = chats.find(
-          (chat: Chat) => chat._id === id
+          (chat: Chat) => chat._id === id,
         );
 
         if (chatData && chatData.messages && chatData.messages.length > 0) {
           const userMessage: ChatMessage | undefined = chatData.messages.find(
-            (msg: ChatMessage) => msg.role === 'user'
+            (msg: ChatMessage) => msg.role === 'user',
           );
 
           if (userMessage && userMessage.content) {
@@ -105,7 +107,7 @@ const ChatLabel: React.FC<ChatLabelProps> = ({
   const selectChat = (e: React.MouseEvent<HTMLDivElement>): void => {
     e.preventDefault();
     const chatData: Chat | undefined = chats.find(
-      (chat: Chat) => chat._id === id
+      (chat: Chat) => chat._id === id,
     );
     if (chatData) {
       setSelectedChat(chatData);
@@ -116,12 +118,22 @@ const ChatLabel: React.FC<ChatLabelProps> = ({
 
   const renameHandler = async (): Promise<void> => {
     try {
+      const token = await getIdToken();
+      console.log(
+        '[ChatLabel] Token for rename:',
+        token ? 'Present' : 'Missing',
+        token?.substring(0, 20) + '...',
+      );
+
       const response: AxiosResponse<ApiResponse> = await axios.post(
         '/api/chat/rename',
         {
           chatId: id,
           name: renameInput,
-        }
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
       );
       const { data } = response;
       if (data.success) {
@@ -132,8 +144,14 @@ const ChatLabel: React.FC<ChatLabelProps> = ({
         toast.error(data.message || 'Failed to rename chat');
       }
     } catch (error: any) {
+      console.error('[ChatLabel] Rename error:', error);
+      console.error('[ChatLabel] Error response:', error.response?.data);
+      console.error('[ChatLabel] Error status:', error.response?.status);
       toast.error(
-        error.response?.data?.error || error.message || 'Rename failed'
+        error.response?.data?.message ||
+          error.response?.data?.error ||
+          error.message ||
+          'Rename failed',
       );
     } finally {
       setShowRenameModal(false);
@@ -142,9 +160,19 @@ const ChatLabel: React.FC<ChatLabelProps> = ({
 
   const deleteHandler = async (): Promise<void> => {
     try {
+      const token = await getIdToken();
+      console.log(
+        '[ChatLabel] Token for delete:',
+        token ? 'Present' : 'Missing',
+        token?.substring(0, 20) + '...',
+      );
+
       const response: AxiosResponse<ApiResponse> = await axios.post(
         '/api/chat/delete',
-        { chatId: id }
+        { chatId: id },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
       );
       const { data } = response;
       if (data.success) {
@@ -155,8 +183,14 @@ const ChatLabel: React.FC<ChatLabelProps> = ({
         toast.error(data.message || 'Failed to delete chat');
       }
     } catch (error: any) {
+      console.error('[ChatLabel] Delete error:', error);
+      console.error('[ChatLabel] Error response:', error.response?.data);
+      console.error('[ChatLabel] Error status:', error.response?.status);
       toast.error(
-        error.response?.data?.error || error.message || 'Delete failed'
+        error.response?.data?.message ||
+          error.response?.data?.error ||
+          error.message ||
+          'Delete failed',
       );
     } finally {
       setShowDeleteModal(false);
@@ -232,7 +266,6 @@ const ChatLabel: React.FC<ChatLabelProps> = ({
         )}
       </div>
 
-      {/* Delete Modal */}
       {showDeleteModal && (
         <div
           onClick={() => setShowDeleteModal(false)}
@@ -268,7 +301,6 @@ const ChatLabel: React.FC<ChatLabelProps> = ({
         </div>
       )}
 
-      {/* Rename Modal */}
       {showRenameModal && (
         <div
           onClick={() => setShowRenameModal(false)}

@@ -1,6 +1,6 @@
 import Chat from '@/models/Chat';
 import connectDB from '@/config/db';
-import { getAuth } from '@clerk/nextjs/server';
+import { getUserIdFromRequest } from '@/lib/firebaseAuth';
 import { NextRequest, NextResponse } from 'next/server';
 
 type ChatType = typeof Chat;
@@ -12,10 +12,10 @@ interface ApiResponse<T = any> {
   error?: string;
 }
 export async function GET(
-  req: NextRequest
+  req: NextRequest,
 ): Promise<NextResponse<ApiResponse<ChatType[]>>> {
   try {
-    const { userId } = getAuth(req);
+    const userId = await getUserIdFromRequest(req);
     await connectDB();
     const data = await Chat.find({ userId });
     return NextResponse.json({ success: true, data });

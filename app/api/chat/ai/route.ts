@@ -2,7 +2,7 @@ import OpenAI from 'openai';
 import Bytez from 'bytez.js';
 import Chat from '@/models/Chat';
 import connectDB from '@/config/db';
-import { getAuth } from '@clerk/nextjs/server';
+import { getUserIdFromRequest } from '@/lib/firebaseAuth';
 import { NextRequest, NextResponse } from 'next/server';
 
 const MODEL_CONFIG: Record<
@@ -127,7 +127,7 @@ async function* generateAIResponse(
         baseURL: OPENROUTER_CONFIG.baseURL,
         apiKey: OPENROUTER_CONFIG.apiKey,
         defaultHeaders: {
-          'HTTP-Referer': 'https://omega-ai.vercel.app',
+          'HTTP-Referer': 'https://omg-ai.vercel.app',
           'X-Title': 'Omega AI',
         },
       });
@@ -215,23 +215,13 @@ async function* streamBytezResponse(bytezConfig: any, prompt: string) {
 
 export async function POST(req: NextRequest): Promise<Response> {
   try {
-    const { userId } = getAuth(req);
+    const userId = await getUserIdFromRequest(req);
     const {
       chatId,
       prompt,
       images = [],
       model = 'deepseek',
     }: ChatRequestBody = await req.json();
-
-    if (!userId) {
-      return new NextResponse(
-        JSON.stringify({
-          success: false,
-          message: 'User not authenticated',
-        }),
-        { status: 401 },
-      );
-    }
 
     const contentMessage =
       images.length > 0
@@ -247,16 +237,19 @@ export async function POST(req: NextRequest): Promise<Response> {
     const modelConfig =
       MODEL_CONFIG[model as keyof typeof MODEL_CONFIG] || MODEL_CONFIG.deepseek;
 
-    await connectDB();
-    const data = await Chat.findOne({ userId, _id: chatId });
-    if (!data) {
-      return new NextResponse(
-        JSON.stringify({
-          success: false,
-          message: 'Chat not found',
-        }),
-        { status: 404 },
-      );
+    let chatData: any = null;
+    if (userId) {
+      await connectDB();
+      chatData = await Chat.findOne({ userId, _id: chatId });
+      if (!chatData) {
+        return new NextResponse(
+          JSON.stringify({
+            success: false,
+            message: 'Chat not found',
+          }),
+          { status: 404 },
+        );
+      }
     }
 
     const userPrompt = {
@@ -273,13 +266,52 @@ export async function POST(req: NextRequest): Promise<Response> {
           : prompt,
       timestamp: Date.now(),
     };
-    data.messages.push(userPrompt);
 
-    const stream = createStreamingResponse(
-      generateAIResponse(modelConfig, model, contentMessage, prompt),
+    if (chatData) {
+      chatData.messages.push(userPrompt);
+      await chatData.save();
+    }
+
+    let fullResponse = '';
+    const generator = generateAIResponse(
+      modelConfig,
+      model,
+      contentMessage,
+      prompt,
     );
 
-    return new NextResponse(stream, {
+    const customStream = new ReadableStream({
+      async start(controller) {
+        try {
+          for await (const chunk of generator) {
+            fullResponse += chunk;
+            const encoder = new TextEncoder();
+            controller.enqueue(encoder.encode(chunk));
+          }
+
+          if (chatData && fullResponse) {
+            try {
+              chatData.messages.push({
+                role: 'assistant',
+                content: fullResponse,
+                timestamp: Date.now(),
+                isVoiceMessage: false,
+              });
+              await chatData.save();
+              console.log('Assistant message saved to database');
+            } catch (saveError: any) {
+              console.error('Error saving assistant message:', saveError);
+            }
+          }
+        } catch (error) {
+          controller.error(error);
+        } finally {
+          controller.close();
+        }
+      },
+    });
+
+    return new NextResponse(customStream, {
       headers: {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',

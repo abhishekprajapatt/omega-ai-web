@@ -27,6 +27,8 @@ import chatgpt_model from './aimodels/chatgpt.png';
 import grok_model from './aimodels/grock.png';
 import gemini_model from './aimodels/gemini.png';
 import claude_model from './aimodels/cloude.png';
+import auth_logo_icon from './auth.png';
+import tranparant_logo from './tranparant_logo.png'
 
 export const assets = {
   arrow_icon,
@@ -58,4 +60,6 @@ export const assets = {
   grok_model,
   gemini_model,
   claude_model,
+  auth_logo_icon,
+  tranparant_logo,
 };

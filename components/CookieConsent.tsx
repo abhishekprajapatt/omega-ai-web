@@ -258,7 +258,6 @@ const CookieConsent: React.FC = () => {
             </p>
 
             <div className="space-y-2 mb-4">
-              {/* Necessary */}
               <div className="flex items-center justify-between p-2 bg-gray-900/30 border border-gray-800 rounded-lg">
                 <div className="flex flex-col flex-1">
                   <h4 className="text-white font-head font-medium text-xs">
@@ -278,7 +277,6 @@ const CookieConsent: React.FC = () => {
                 </div>
               </div>
 
-              {/* Analytics */}
               <div className="flex items-center justify-between p-2 bg-gray-900/30 border border-gray-800 rounded-lg hover:border-gray-700 transition">
                 <div className="flex flex-col flex-1">
                   <h4 className="text-white font-head font-medium text-xs">
@@ -312,7 +310,6 @@ const CookieConsent: React.FC = () => {
                 </div>
               </div>
 
-              {/* Marketing */}
               <div className="flex items-center justify-between p-2 bg-gray-900/30 border border-gray-800 rounded-lg hover:border-gray-700 transition">
                 <div className="flex flex-col flex-1">
                   <h4 className="text-white font-head font-medium text-xs">

@@ -1,7 +1,6 @@
 'use client';
 import Image from 'next/image';
 import { assets } from '@/assets/assets';
-import { useClerk } from '@clerk/nextjs';
 import Message from '@/components/Message';
 import Sidebar from '@/components/Sidebar';
 import { ChevronDown } from 'lucide-react';
@@ -36,7 +35,7 @@ interface AppContextType {
   setSelectedChat: (chat: SelectedChat | null) => void;
   sendPrompt: (
     e: FormEvent<HTMLFormElement> | MouseEvent | undefined,
-    prompt: string
+    prompt: string,
   ) => void;
   user: any;
   isLoading: boolean;
@@ -65,14 +64,6 @@ const ChatPage: React.FC = () => {
     setIsWriting,
     isClient,
   } = useAppContext() as AppContextType;
-
-  const { openSignIn } = useClerk();
-
-  useEffect(() => {
-    if (isClient && user === null) {
-      openSignIn();
-    }
-  }, [user, isClient, openSignIn]);
 
   useEffect(() => {
     if (!chatId || !chats || chats.length === 0) return;
@@ -110,7 +101,6 @@ const ChatPage: React.FC = () => {
   useEffect(() => {
     setGreeting(getGreeting());
   }, [getGreeting]);
-
 
   useEffect(() => {
     if (containerRef.current) {

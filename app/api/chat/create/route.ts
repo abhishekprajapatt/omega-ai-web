@@ -1,6 +1,6 @@
 import Chat from '@/models/Chat';
 import connectDB from '@/config/db';
-import { getAuth } from '@clerk/nextjs/server';
+import { getUserIdFromRequest } from '@/lib/firebaseAuth';
 import { NextRequest, NextResponse } from 'next/server';
 
 interface ApiResponse {
@@ -11,10 +11,10 @@ interface ApiResponse {
 }
 
 export async function POST(
-  req: NextRequest
+  req: NextRequest,
 ): Promise<NextResponse<ApiResponse>> {
   try {
-    const { userId } = getAuth(req);
+    const userId = await getUserIdFromRequest(req);
     if (!userId) {
       return NextResponse.json({
         success: false,

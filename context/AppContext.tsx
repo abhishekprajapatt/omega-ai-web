@@ -1,7 +1,7 @@
 'use client';
 import toast from 'react-hot-toast';
 import { assets } from '@/assets/assets';
-import { useAuth, useUser } from '@clerk/nextjs';
+import { useFirebaseAuth } from '@/context/FirebaseAuthContext';
 import axios, { type AxiosResponse } from 'axios';
 import type { StaticImageData } from 'next/image';
 import {
@@ -17,6 +17,14 @@ import {
 import SpeechRecognition, {
   useSpeechRecognition,
 } from 'react-speech-recognition';
+import {
+  getTempChats,
+  saveTempChat,
+  deleteTempChat,
+  clearTempChats,
+  getSelectedChatId,
+  setSelectedChatId,
+} from '@/lib/localStorageUtils';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -44,7 +52,7 @@ interface ApiResponse<T = any> {
 }
 
 interface AppContextValue {
-  user: ReturnType<typeof useUser>['user'];
+  user: any;
   chats: Chat[];
   setChats: React.Dispatch<React.SetStateAction<Chat[]>>;
   selectedChat: Chat | null;
@@ -122,8 +130,7 @@ interface AppContextProviderProps {
 export const AppContextProvider: React.FC<AppContextProviderProps> = ({
   children,
 }) => {
-  const { user } = useUser();
-  const { getToken } = useAuth();
+  const { user: firebaseUser, getIdToken, isAuthenticated } = useFirebaseAuth();
   const [chats, setChats] = useState<Chat[]>([]);
   const [selectedChat, setSelectedChat] = useState<Chat | null>(null);
   const [renamingChatId, setRenamingChatId] = useState<string | null>(null);
@@ -171,25 +178,25 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
     greetings: string[];
   }>({
     greetings: [
-      `Hey ${user?.firstName || 'there'}, I'm OMEGA, how can I help you today?`,
+      `Hey ${firebaseUser?.displayName || 'there'}, I'm OMEGA, how can I help you today?`,
       `What's up ${
-        user?.firstName || 'there'
+        firebaseUser?.displayName || 'there'
       }! I'm OMEGA. Let's create something amazing!`,
-      `Hey ${user?.firstName || 'there'}, OMEGA here! What's on your mind?`,
+      `Hey ${firebaseUser?.displayName || 'there'}, OMEGA here! What's on your mind?`,
       `${
-        user?.firstName || 'there'
+        firebaseUser?.displayName || 'there'
       }! I'm OMEGA. Ready to build something incredible?`,
       `Welcome ${
-        user?.firstName || 'there'
+        firebaseUser?.displayName || 'there'
       }! I'm OMEGA, your AI assistant. What can I do for you?`,
       `Hey there ${
-        user?.firstName || 'friend'
+        firebaseUser?.displayName || 'friend'
       }! It's OMEGA. Let's turn your ideas into reality!`,
       `${
-        user?.firstName || 'Developer'
+        firebaseUser?.displayName || 'Developer'
       }, meet OMEGA! How can I assist you today?`,
       `What's happening ${
-        user?.firstName || 'there'
+        firebaseUser?.displayName || 'there'
       }? I'm OMEGA. Let's collaborate!`,
     ],
   });
@@ -201,6 +208,23 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
   }, [transcript]);
 
   useEffect(() => {
+    if (!isContinuousListening) {
+      return;
+    }
+
+    try {
+      SpeechRecognition.startListening({ continuous: true });
+    } catch (e) {
+      console.error('Error starting continuous listening:', e);
+    }
+
+    return () => {
+      SpeechRecognition.stopListening();
+    };
+    
+  }, [isContinuousListening]);
+
+  useEffect(() => {
     setIsClient(true);
 
     if (typeof window !== 'undefined') {
@@ -208,17 +232,6 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
 
       const browserLang = navigator.language || 'en-US';
       setDetectedLang(browserLang);
-
-      requestMicrophonePermission().then((hasAccess) => {
-        if (hasAccess) {
-          console.log(
-            'Microphone permission granted, setting up background listening',
-          );
-          setAlwaysListening(true);
-          resetTranscript();
-          SpeechRecognition.startListening({ continuous: true });
-        }
-      });
     }
 
     const handleBeforeUnload = () => {
@@ -322,7 +335,8 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
 
   const requestMicrophonePermission = async (): Promise<boolean> => {
     try {
-      await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      microphoneStreamRef.current = stream;
       return true;
     } catch (error: unknown) {
       console.error('Microphone access denied:', error);
@@ -617,12 +631,26 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
     }
 
     try {
-      const hasMicAccess = await requestMicrophonePermission();
-      if (!hasMicAccess) return;
+      if (!isContinuousListening) {
+        const hasMicAccess = await requestMicrophonePermission();
+        if (!hasMicAccess) return;
+      }
 
       if (isContinuousListening) {
         SpeechRecognition.stopListening();
+        SpeechRecognition.abortListening();
+
+        if (microphoneStreamRef.current) {
+          microphoneStreamRef.current.getTracks().forEach((track) => {
+            track.stop();
+          });
+          microphoneStreamRef.current = null;
+        }
+
         setIsContinuousListening(false);
+        setAlwaysListening(false);
+        resetTranscript();
+
         if (speechSynthRef.current && speechSynthRef.current.speaking) {
           speechSynthRef.current.cancel();
           setIsSpeaking(false);
@@ -631,15 +659,20 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
             '🔊 TTS: Speech cancelled (isContinuousListening = false)',
           );
         }
-        if (alwaysListening) {
-          resetTranscript();
-          SpeechRecognition.startListening({ continuous: true });
-        }
       } else {
-        resetTranscript();
-        SpeechRecognition.startListening({ continuous: true });
+        setAlwaysListening(true);
         setIsContinuousListening(true);
         setHasInteracted(true);
+        resetTranscript();
+
+        setTimeout(() => {
+          try {
+            SpeechRecognition.startListening({ continuous: true });
+            console.log('Speech recognition started');
+          } catch (e) {
+            console.error('Error starting speech recognition:', e);
+          }
+        }, 100);
 
         playNotificationSound().then(() => {
           if (isContinuousListening) {
@@ -656,7 +689,7 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
   const processTranscript = (currentTranscript: string): void => {
     if (!isClient) return;
     if (!currentTranscript) return;
-    if (isLoading) return;
+    if (isLoadingRef.current) return;
     if (isSpeaking) {
       console.log('🔊 Ignoring transcript (AI is speaking - system voice)');
       return;
@@ -722,21 +755,44 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
           clearTimeout(silenceTimerRef.current);
         }
 
+        const transcriptToProcess = currentTranscript;
+
         silenceTimerRef.current = setTimeout(() => {
-          if (currentTranscript.trim() && !isLoading) {
+          if (transcriptToProcess.trim() && !isLoadingRef.current) {
             console.log(
               'Silence detected, processing command:',
-              currentTranscript,
+              transcriptToProcess,
             );
 
-            if (isFixedResponse(currentTranscript)) {
+            if (isFixedResponse(transcriptToProcess)) {
               console.log('Fixed response detected, not sending to backend');
               resetTranscript();
               lastTranscriptRef.current = '';
+              
+              if (isContinuousListening) {
+                setTimeout(() => {
+                  try {
+                    SpeechRecognition.startListening({ continuous: true });
+                  } catch (e) {
+                    console.error('Error restarting listening:', e);
+                  }
+                }, 50);
+              }
             } else {
-              sendPrompt(null, currentTranscript);
-              resetTranscript();
               lastTranscriptRef.current = '';
+              resetTranscript();
+              
+              if (isContinuousListening) {
+                setTimeout(() => {
+                  try {
+                    SpeechRecognition.startListening({ continuous: true });
+                  } catch (e) {
+                    console.error('Error restarting listening:', e);
+                  }
+                }, 50);
+              }
+              
+              sendPrompt(null, transcriptToProcess);
             }
           }
         }, 2500);
@@ -786,7 +842,7 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
             _id: tempChatId,
             name: 'New Chat',
             messages: [],
-            userId: user?.id || '',
+            userId: firebaseUser?.uid || '',
           };
           chatToUse = tempChat;
           setSelectedChat(tempChat);
@@ -831,38 +887,46 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
 
       if (chatId.startsWith('temp_')) {
         try {
-          const token = await getToken();
-          const createResponse: AxiosResponse<ApiResponse<{ _id: string }>> =
-            await axios.post(
-              '/api/chat/create',
-              {},
-              { headers: { Authorization: `Bearer ${token}` } },
-            );
-          if (createResponse.data.success && createResponse.data.data) {
-            const newChatId = createResponse.data.data._id;
-            chatId = newChatId;
-            shouldGenerateTitle = true;
+          if (isAuthenticated && firebaseUser) {
+            const token = await getIdToken();
+            const createResponse: AxiosResponse<ApiResponse<{ _id: string }>> =
+              await axios.post(
+                '/api/chat/create',
+                {},
+                { headers: { Authorization: `Bearer ${token}` } },
+              );
+            if (createResponse.data.success && createResponse.data.data) {
+              const newChatId = createResponse.data.data._id;
+              chatId = newChatId;
+              shouldGenerateTitle = true;
 
-            const updatedChat: Chat = {
-              ...chatToUse,
-              _id: newChatId,
-              name: 'New Chat',
-              messages: chatToUse.messages || [],
-            };
-            setSelectedChat(updatedChat);
-            setChats((prevChats) =>
-              prevChats.map((chat) =>
-                chat._id === chatToUse._id ? updatedChat : chat,
-              ),
-            );
-            if (typeof window !== 'undefined') {
-              window.history.pushState({}, '', `/c/${newChatId}`);
+              const updatedChat: Chat = {
+                ...chatToUse,
+                _id: newChatId,
+                name: 'New Chat',
+                messages: chatToUse.messages || [],
+              };
+              setSelectedChat(updatedChat);
+              setChats((prevChats) =>
+                prevChats.map((chat) =>
+                  chat._id === chatToUse._id ? updatedChat : chat,
+                ),
+              );
+              if (typeof window !== 'undefined') {
+                window.history.pushState({}, '', `/c/${newChatId}`);
+              }
+            } else {
+              console.error('Failed to create chat - no data returned');
+              toast.error('Failed to create chat');
+              setIsLoading(false);
+              return;
             }
           } else {
-            console.error('Failed to create chat - no data returned');
-            toast.error('Failed to create chat');
-            setIsLoading(false);
-            return;
+            shouldGenerateTitle = false; 
+            console.log(
+              'Keeping temp chat ID for unauthenticated user:',
+              chatId,
+            );
           }
         } catch (error) {
           console.error('Failed to create chat:', error);
@@ -872,7 +936,7 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
         }
       }
 
-      if (!chatId || chatId.startsWith('temp_')) {
+      if (!chatId) {
         console.error('Invalid chatId after creation:', chatId);
         toast.error('Failed to initialize chat');
         setIsLoading(false);
@@ -935,14 +999,18 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
       let autoSpeakContent = '';
 
       try {
-        const token = await getToken();
+        let headers: Record<string, string> = {
+          'Content-Type': 'application/json',
+        };
+
+        if (isAuthenticated) {
+          const token = await getIdToken();
+          headers['Authorization'] = `Bearer ${token}`;
+        }
 
         const response = await fetch('/api/chat/ai', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
+          headers: headers,
           body: JSON.stringify({
             chatId: chatId,
             prompt: finalPrompt,
@@ -962,98 +1030,106 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
 
-        while (true) {
-          const { done, value } = await reader.read();
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
 
-          if (done) break;
+            if (done) break;
 
-          const chunk = decoder.decode(value, { stream: true });
-          fullContent += chunk;
-          autoSpeakContent += chunk;
+            const chunk = decoder.decode(value, { stream: true });
+            fullContent += chunk;
+            autoSpeakContent += chunk;
 
-          setSelectedChat((prev: Chat | null): Chat | null => {
-            if (!prev) return prev;
+            setSelectedChat((prev: Chat | null): Chat | null => {
+              if (!prev) return prev;
 
-            const updatedMessages = prev.messages.map(
-              (msg: Message, index: number) => {
-                if (
-                  index === prev.messages.length - 1 &&
-                  msg.role === 'assistant'
-                ) {
-                  return { ...msg, content: fullContent };
-                }
-                return msg;
-              },
-            );
-
-            return { ...prev, messages: updatedMessages };
-          });
-
-          setChats((prevChats: Chat[]) =>
-            prevChats.map((chat: Chat) =>
-              chat._id === chatId
-                ? {
-                    ...chat,
-                    messages: chat.messages.map(
-                      (msg: Message, index: number) => {
-                        if (
-                          index === chat.messages.length - 1 &&
-                          msg.role === 'assistant'
-                        ) {
-                          return { ...msg, content: fullContent };
-                        }
-                        return msg;
-                      },
-                    ),
+              const updatedMessages = prev.messages.map(
+                (msg: Message, index: number) => {
+                  if (
+                    index === prev.messages.length - 1 &&
+                    msg.role === 'assistant'
+                  ) {
+                    return { ...msg, content: fullContent };
                   }
-                : chat,
-            ),
-          );
-        }
+                  return msg;
+                },
+              );
 
-        const final = decoder.decode();
-        if (final) {
-          fullContent += final;
-          autoSpeakContent += final;
+              return { ...prev, messages: updatedMessages };
+            });
 
-          setSelectedChat((prev: Chat | null): Chat | null => {
-            if (!prev) return prev;
-
-            const updatedMessages = prev.messages.map(
-              (msg: Message, index: number) => {
-                if (
-                  index === prev.messages.length - 1 &&
-                  msg.role === 'assistant'
-                ) {
-                  return { ...msg, content: fullContent };
-                }
-                return msg;
-              },
+            setChats((prevChats: Chat[]) =>
+              prevChats.map((chat: Chat) =>
+                chat._id === chatId
+                  ? {
+                      ...chat,
+                      messages: chat.messages.map(
+                        (msg: Message, index: number) => {
+                          if (
+                            index === chat.messages.length - 1 &&
+                            msg.role === 'assistant'
+                          ) {
+                            return { ...msg, content: fullContent };
+                          }
+                          return msg;
+                        },
+                      ),
+                    }
+                  : chat,
+              ),
             );
+          }
 
-            return { ...prev, messages: updatedMessages };
-          });
+          const final = decoder.decode();
+          if (final) {
+            fullContent += final;
+            autoSpeakContent += final;
 
-          setChats((prevChats: Chat[]) =>
-            prevChats.map((chat: Chat) =>
-              chat._id === chatId
-                ? {
-                    ...chat,
-                    messages: chat.messages.map(
-                      (msg: Message, index: number) => {
-                        if (
-                          index === chat.messages.length - 1 &&
-                          msg.role === 'assistant'
-                        ) {
-                          return { ...msg, content: fullContent };
-                        }
-                        return msg;
-                      },
-                    ),
+            setSelectedChat((prev: Chat | null): Chat | null => {
+              if (!prev) return prev;
+
+              const updatedMessages = prev.messages.map(
+                (msg: Message, index: number) => {
+                  if (
+                    index === prev.messages.length - 1 &&
+                    msg.role === 'assistant'
+                  ) {
+                    return { ...msg, content: fullContent };
                   }
-                : chat,
-            ),
-          );
+                  return msg;
+                },
+              );
+
+              return { ...prev, messages: updatedMessages };
+            });
+
+            setChats((prevChats: Chat[]) =>
+              prevChats.map((chat: Chat) =>
+                chat._id === chatId
+                  ? {
+                      ...chat,
+                      messages: chat.messages.map(
+                        (msg: Message, index: number) => {
+                          if (
+                            index === chat.messages.length - 1 &&
+                            msg.role === 'assistant'
+                          ) {
+                            return { ...msg, content: fullContent };
+                          }
+                          return msg;
+                        },
+                      ),
+                    }
+                  : chat,
+              ),
+            );
+          }
+        } catch (streamError) {
+          console.error('Stream reading error:', streamError);
+          reader.cancel();
+          throw streamError;
+        } finally {
+          reader.releaseLock();
         }
 
         if (fullContent && shouldAutoSpeak) {
@@ -1066,6 +1142,29 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
         }
 
         setIsWriting(false);
+
+        if (isAuthenticated && firebaseUser && fullContent) {
+          try {
+            const token = await getIdToken();
+            const assistantMessageToSave: Message = {
+              role: 'assistant',
+              content: fullContent,
+              timestamp: Date.now(),
+              isVoiceMessage: isVoiceInput,
+            };
+
+            await axios.post(
+              '/api/chat/save-message',
+              {
+                chatId: chatId,
+                message: assistantMessageToSave,
+              },
+              { headers: { Authorization: `Bearer ${token}` } },
+            );
+          } catch (saveError) {
+            console.error('Error saving assistant message:', saveError);
+          }
+        }
 
         if (shouldGenerateTitle) {
           generateChatTitle(chatId, finalPrompt);
@@ -1150,8 +1249,6 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
 
   const createNewChat = async (): Promise<void> => {
     try {
-      if (!user) return;
-
       if (
         selectedChat &&
         selectedChat.messages &&
@@ -1170,7 +1267,7 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
         _id: tempChatId,
         name: 'New Chat',
         messages: [],
-        userId: user.id,
+        userId: firebaseUser?.uid || 'unauthenticated',
       };
 
       setSelectedChat(tempChat);
@@ -1181,21 +1278,31 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
   };
   const deleteChat = async (chatId: string): Promise<void> => {
     try {
-      if (!user) return;
-      const token = await getToken();
-      const { data }: AxiosResponse<ApiResponse> = await axios.delete(
-        `/api/chat/delete/${chatId}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        },
-      );
-      if (data.success) {
-        fetchUserChats();
+      if (isAuthenticated && firebaseUser) {
+        const token = await getIdToken();
+        const { data }: AxiosResponse<ApiResponse> = await axios.delete(
+          `/api/chat/delete/${chatId}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          },
+        );
+        if (data.success) {
+          fetchUserChats();
+          if (selectedChat && selectedChat._id === chatId) {
+            setSelectedChat(null);
+          }
+        } else {
+          toast.error(data.message || '');
+        }
+      } else {
+        deleteTempChat(chatId);
+        setChats((prevChats) =>
+          prevChats.filter((chat) => chat._id !== chatId),
+        );
         if (selectedChat && selectedChat._id === chatId) {
           setSelectedChat(null);
         }
-      } else {
-        toast.error(data.message || '');
+        toast.success('Chat deleted');
       }
     } catch (error: unknown) {
       toast.error((error as Error).message || '');
@@ -1204,20 +1311,37 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
 
   const renameChat = async (chatId: string, newName: string): Promise<void> => {
     try {
-      if (!user) return;
-      const token = await getToken();
-      const { data }: AxiosResponse<ApiResponse> = await axios.put(
-        `/api/chat/rename/${chatId}`,
-        { name: newName },
-        { headers: { Authorization: `Bearer ${token}` } },
-      );
-      if (data.success) {
-        fetchUserChats();
-        if (selectedChat && selectedChat._id === chatId) {
-          setSelectedChat({ ...selectedChat, name: newName });
+      if (isAuthenticated && firebaseUser) {
+        const token = await getIdToken();
+        const { data }: AxiosResponse<ApiResponse> = await axios.put(
+          `/api/chat/rename/${chatId}`,
+          { name: newName },
+          { headers: { Authorization: `Bearer ${token}` } },
+        );
+        if (data.success) {
+          fetchUserChats();
+          if (selectedChat && selectedChat._id === chatId) {
+            setSelectedChat({ ...selectedChat, name: newName });
+          }
+        } else {
+          toast.error(data.message || '');
         }
       } else {
-        toast.error(data.message || '');
+        const chats = getTempChats();
+        const chatIndex = chats.findIndex((c) => c._id === chatId);
+        if (chatIndex >= 0) {
+          chats[chatIndex].name = newName;
+          saveTempChat(chats[chatIndex]);
+          setChats((prevChats) =>
+            prevChats.map((chat) =>
+              chat._id === chatId ? { ...chat, name: newName } : chat,
+            ),
+          );
+          if (selectedChat && selectedChat._id === chatId) {
+            setSelectedChat({ ...selectedChat, name: newName });
+          }
+          toast.success('Chat renamed');
+        }
       }
     } catch (error: unknown) {
       toast.error((error as Error).message || '');
@@ -1230,11 +1354,10 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
   ): Promise<void> => {
     setRenamingChatId(chatId);
     try {
-      if (!user || !chatId) return;
-      const token = await getToken();
+      if (!firebaseUser || !chatId) return;
+      const token = await getIdToken();
 
       let titleSuggestion = '';
-
       if (userQuery && userQuery.trim()) {
         const words = userQuery.trim().split(' ');
         titleSuggestion = words.slice(0, 5).join(' ');
@@ -1300,32 +1423,51 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
 
   const fetchUserChats = async (): Promise<void> => {
     try {
-      const token = await getToken();
-      const { data }: AxiosResponse<ApiResponse<Chat[]>> = await axios.get(
-        '/api/chat/get',
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        },
-      );
-      if (data.success) {
-        const chatsData: Chat[] = Array.isArray(data.data) ? data.data : [];
-        console.log('fetchUserChats', chatsData);
-        const sortedData = chatsData.sort(
-          (a: Chat, b: Chat) =>
-            new Date(b.updatedAt || 0).getTime() -
-            new Date(a.updatedAt || 0).getTime(),
-        );
-        setChats(sortedData);
+      let chatsData: Chat[] = [];
 
-        if (chatsData.length === 0) {
-          await createNewChat();
-          return fetchUserChats();
+      if (isAuthenticated) {
+        try {
+          const token = await getIdToken();
+          const { data }: AxiosResponse<ApiResponse<Chat[]>> = await axios.get(
+            '/api/chat/get',
+            {
+              headers: { Authorization: `Bearer ${token}` },
+            },
+          );
+          if (data.success) {
+            chatsData = Array.isArray(data.data) ? data.data : [];
+            console.log('fetchUserChats', chatsData);
+          } else {
+            console.log('Failed to fetch chats:', data.message);
+          }
+        } catch (axiosError: any) {
+          console.log(
+            'Axios error fetching chats:',
+            axiosError.response?.status,
+          );
+          chatsData = [];
         }
       } else {
-        toast.error(data.message || '');
+        const tempChats = getTempChats();
+        chatsData = tempChats.map((chat) => ({
+          ...chat,
+          userId: chat.userId || 'unauthenticated',
+        })) as Chat[];
+        console.log('fetchTempChats from localStorage', chatsData);
+      }
+
+      const sortedData = chatsData.sort(
+        (a: Chat, b: Chat) =>
+          new Date(b.updatedAt || 0).getTime() -
+          new Date(a.updatedAt || 0).getTime(),
+      );
+      setChats(sortedData);
+
+      if (chatsData.length === 0) {
+        await createNewChat();
       }
     } catch (error: unknown) {
-      toast.error((error as Error).message || '');
+      console.log('Error in fetchUserChats:', error);
     }
   };
 
@@ -1385,7 +1527,7 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
         setIsLoading(true);
         setIsWriting(true);
 
-        const token = await getToken();
+        const token = await getIdToken();
         const { data }: AxiosResponse<ApiResponse<{ content: string }>> =
           await axios.post(
             '/api/chat/ai',
@@ -1505,13 +1647,38 @@ export const AppContextProvider: React.FC<AppContextProviderProps> = ({
   };
 
   useEffect(() => {
-    if (user) {
+    if (firebaseUser || !isAuthenticated) {
       fetchUserChats();
     }
-  }, [user]);
+  }, [firebaseUser, isAuthenticated]);
+
+  useEffect(() => {
+    if (!isAuthenticated && typeof window !== 'undefined') {
+      chats.forEach((chat) => {
+        saveTempChat(chat);
+      });
+      console.log('Saved chats to localStorage:', chats.length);
+    }
+  }, [chats, isAuthenticated]);
+
+  useEffect(() => {
+    if (!isAuthenticated && typeof window !== 'undefined') {
+      if (selectedChat) {
+        setSelectedChatId(selectedChat._id);
+      } else {
+        setSelectedChatId(null);
+      }
+    }
+  }, [selectedChat, isAuthenticated]);
+
+  useEffect(() => {
+    if (isAuthenticated && firebaseUser) {
+      clearTempChats();
+    }
+  }, [isAuthenticated, firebaseUser]);
 
   const value: AppContextValue = {
-    user,
+    user: firebaseUser,
     chats,
     setChats,
     selectedChat,

@@ -1,19 +1,16 @@
 'use client';
+
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
+import { useEffect, useRef, useState, MouseEvent, useCallback } from 'react';
+
 import { assets } from '@/assets/assets';
-import { useClerk } from '@clerk/nextjs';
+import { useFirebaseAuth } from '@/context/FirebaseAuthContext';
+import { useAppContext } from '@/context/AppContext';
+
 import Sidebar from '@/components/Sidebar';
 import PromptBox from '@/components/PromptBox';
 import Message from '@/components/Message';
-import { useAppContext } from '@/context/AppContext';
-import {
-  useEffect,
-  useRef,
-  useState,
-  MouseEvent,
-  FormEvent,
-  useCallback,
-} from 'react';
 
 interface MessageType {
   _id?: string;
@@ -27,55 +24,28 @@ interface SelectedChat {
   messages: MessageType[];
 }
 
-interface AppContextType {
-  selectedChat: SelectedChat | null;
-  setSelectedChat: (chat: SelectedChat | null) => void;
-  sendPrompt: (
-    e: FormEvent<HTMLFormElement> | MouseEvent | undefined,
-    prompt: string
-  ) => void;
-  user: any;
-  isLoading: boolean;
-  setIsLoading: (loading: boolean) => void;
-  isWriting: boolean;
-  setIsWriting: (writing: boolean) => void;
-  isClient: boolean;
-}
-
 const Home: React.FC = () => {
+  const {
+    user: firebaseUser,
+    loading: authLoading,
+    isAuthenticated,
+  } = useFirebaseAuth();
+  const router = useRouter();
+
   const [expand, setExpand] = useState<boolean>(false);
-  const containerRef = useRef<HTMLDivElement>(null);
   const [greeting, setGreeting] = useState<string>('');
   const [welcomeMessage, setWelcomeMessage] = useState<string>('');
+  const [initialLoadDone, setInitialLoadDone] = useState<boolean>(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
-  const {
-    selectedChat,
-    setSelectedChat,
-    sendPrompt,
-    user,
-    isLoading,
-    setIsLoading,
-    isWriting,
-    setIsWriting,
-    isClient,
-  } = useAppContext() as AppContextType;
-
-  const { openSignIn } = useClerk();
+  const { selectedChat, setSelectedChat, isWriting } = useAppContext() as any;
 
   useEffect(() => {
-    if (isClient && user === null) {
-      openSignIn();
+    if (!authLoading) {
+      setInitialLoadDone(true);
     }
-  }, [user, isClient, openSignIn]);
+  }, [authLoading]);
 
-  useEffect(() => {
-    if (containerRef.current) {
-      containerRef.current.scrollTo({
-        top: containerRef.current.scrollHeight,
-        behavior: 'smooth',
-      });
-    }
-  }, [selectedChat?.messages]);
 
   const getGreeting = useCallback((): string => {
     const now = new Date();
@@ -163,61 +133,126 @@ const Home: React.FC = () => {
       "Your journey starts here. Let's go! ⚡",
     ];
 
-    const messageArray = user ? userWelcomes : guestWelcomes;
+    const messageArray = firebaseUser ? userWelcomes : guestWelcomes;
     const randomIndex = Math.floor(Math.random() * messageArray.length);
     let message = messageArray[randomIndex];
 
-    if (user) {
-      message = message.replace('{name}', user?.firstName || 'Developer');
+    if (firebaseUser && firebaseUser.displayName) {
+      message = message.replace('{name}', firebaseUser.displayName);
+    } else {
+      message = message.replace('{name}', 'Developer');
     }
 
     return message;
-  }, [user]);
+  }, [firebaseUser]);
 
   useEffect(() => {
     setGreeting(getGreeting());
     setWelcomeMessage(getWelcomeMessage());
-  }, [user, getGreeting, getWelcomeMessage]);
+  }, [getGreeting, getWelcomeMessage]);
 
   useEffect(() => {
     setSelectedChat(null);
   }, [setSelectedChat]);
 
   useEffect(() => {
-    if (containerRef.current) {
+    if (containerRef.current && selectedChat?.messages) {
       containerRef.current.scrollTo({
         top: containerRef.current.scrollHeight,
         behavior: 'smooth',
       });
     }
-  }, [selectedChat]);
+  }, [selectedChat?.messages]);
 
   const handleToggleExpand = (e: MouseEvent<HTMLImageElement>): void => {
     e.stopPropagation();
     setExpand((prev) => !prev);
   };
 
+  if (!initialLoadDone) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-black">
+        <p className="text-white">Loading...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-screen">
-      <Sidebar expand={expand} setExpand={setExpand} />
-      <div className="flex-1 flex flex-col items-center justify-center px-2 sm:px-6 pb-12 sm:pb-8 bg-[#09090b] [#292a2d] text-white relative">
+      {isAuthenticated ? (
+        <Sidebar expand={expand} setExpand={setExpand} />
+      ) : (
+        <Image
+          src={assets.logo_icon}
+          alt="Logo"
+          width={100}
+          height={100}
+          className="flex absolute top-10 right-2"
+        />
+      )}
+
+      <div className="flex-1 flex flex-col items-center justify-center px-2 sm:px-6 pb-12 sm:pb-8 bg-[#09090b] text-white relative">
         <div className="md:hidden absolute px-4 top-6 flex items-center justify-between w-full">
-          <Image
-            onClick={handleToggleExpand}
-            className="rotate-180 cursor-pointer"
-            src={assets.menu_icon as string}
-            alt="Menu"
-            width={24}
-            height={24}
-          />
-          <Image
-            className="opacity-70"
-            src={assets.chat_icon as string}
-            alt="Chat"
-            width={24}
-            height={24}
-          />
+          {isAuthenticated ? (
+            <>
+              <Image
+                onClick={handleToggleExpand}
+                className="rotate-180 cursor-pointer"
+                src={assets.menu_icon as string}
+                alt="Menu"
+                width={24}
+                height={24}
+              />
+              <Image
+                className="opacity-70"
+                src={assets.chat_icon as string}
+                alt="Chat"
+                width={24}
+                height={24}
+              />
+            </>
+          ) : (
+            <>
+              <Image
+                src={assets.logo_icon as string}
+                alt="Omega Logo"
+                width={24}
+                height={24}
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={() => router.push('/sign-in')}
+                  className="px-3 py-1 text-sm rounded-full bg-transparent border border-gray-500 hover:border-white hover:text-white transition-all"
+                >
+                  Sign In
+                </button>
+                <button
+                  onClick={() => router.push('/sign-up')}
+                  className="px-3 py-1 text-sm rounded-full cursor-pointer bg-primary hover:bg-primary/80 transition-all"
+                >
+                  Sign Up
+                </button>
+              </div>
+            </>
+          )}
         </div>
+
+        {!isAuthenticated && (
+          <div className="hidden md:flex absolute top-6 right-6 gap-3">
+            <button
+              onClick={() => router.push('/sign-in')}
+              className="px-4 py-2 rounded-full cursor-pointer bg-transparent border border-gray-500 hover:border-white hover:text-white transition-all"
+            >
+              Sign In
+            </button>
+            <button
+              onClick={() => router.push('/sign-up')}
+              className="px-4 py-2 rounded-full cursor-pointer bg-primary hover:bg-primary/80 hover:border-primary transition-all"
+            >
+              Sign Up
+            </button>
+          </div>
+        )}
 
         {!selectedChat || selectedChat.messages.length === 0 ? (
           <>
@@ -227,33 +262,35 @@ const Home: React.FC = () => {
                 alt="Omega Logo"
                 width={40}
                 height={40}
-                className="sm:h-14 sm:w-14 rounded-full"
+                className="sm:h-14 sm:w-14 rounded-full select-none"
               />
-              <p className="text-md sm:text-xl md:text-4xl font-head font-black text-shadow-white">
+              <p className="text-md sm:text-xl md:text-4xl font-head font-black text-shadow-white select-none">
                 {greeting}
               </p>
             </div>
-            <p className="text-xs md:text-sm font-head text-center my-2 md:my-4 mask-b-from-neutral-50">
+            <p className="text-xs md:text-sm font-head text-center my-2 md:my-4 mask-b-from-neutral-50 select-none">
               {welcomeMessage}
             </p>
           </>
         ) : (
           <div
             ref={containerRef}
-            className="w-full flex-1 overflow-y-auto mb-6 flex flex-col gap-4 scrollbar-hide"
+            className="w-full max-w-3xl flex-1 overflow-y-auto mb-2 flex flex-col gap-4 scrollbar-hide mx-auto justify-center items-center"
           >
-            {selectedChat.messages.map((message, index) => (
-              <Message
-                key={index}
-                role={message.role}
-                content={message.content}
-                index={index}
-                messageId={message._id || `msg-${index}`}
-                isWriting={isWriting}
-                expand={expand}
-                setExpand={setExpand}
-              />
-            ))}
+            {selectedChat.messages.map(
+              (message: MessageType, index: number) => (
+                <Message
+                  key={index}
+                  role={message.role}
+                  content={message.content}
+                  index={index}
+                  messageId={message._id || `msg-${index}`}
+                  isWriting={isWriting}
+                  expand={expand}
+                  setExpand={setExpand}
+                />
+              ),
+            )}
           </div>
         )}
 
@@ -265,4 +302,5 @@ const Home: React.FC = () => {
     </div>
   );
 };
+
 export default Home;

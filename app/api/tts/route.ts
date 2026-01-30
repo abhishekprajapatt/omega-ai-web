@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuth } from '@clerk/nextjs/server';
+import { getUserIdFromRequest } from '@/lib/firebaseAuth';
 
 interface TTSRequestBody {
   text: string;
@@ -12,7 +12,7 @@ interface TTSRequestBody {
 async function convertWithElevenLabs(
   text: string,
   language: string = 'en',
-  voiceId: string = 'EXAVITQu4vr4xnSDxMaL', 
+  voiceId: string = 'EXAVITQu4vr4xnSDxMaL',
 ): Promise<Buffer> {
   const apiKey = process.env.ELEVENLABS_API_KEY;
   if (!apiKey) {
@@ -133,7 +133,7 @@ async function convertWithGoogle(
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   try {
-    const { userId } = getAuth(req);
+    const userId = await getUserIdFromRequest(req);
 
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -182,7 +182,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         headers: {
           'Content-Type': `audio/${format}`,
           'Content-Length': audioBuffer.length.toString(),
-          'Cache-Control': 'public, max-age=3600', 
+          'Cache-Control': 'public, max-age=3600',
         },
       },
     );
@@ -197,7 +197,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
 export async function GET(req: NextRequest): Promise<NextResponse> {
   try {
-    const { userId } = getAuth(req);
+    const userId = await getUserIdFromRequest(req);
 
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

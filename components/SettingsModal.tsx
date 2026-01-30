@@ -4,10 +4,10 @@ import { X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { CgProfile } from 'react-icons/cg';
 import { FiFileText } from 'react-icons/fi';
-import { useClerk, useUser } from '@clerk/nextjs';
 import { RxMixerHorizontal } from 'react-icons/rx';
 import { BsDatabaseFillGear } from 'react-icons/bs';
 import { useAppContext } from '@/context/AppContext';
+import { useFirebaseAuth } from '@/context/FirebaseAuthContext';
 import { getTranslation } from '@/lib/translations';
 import React, { useState, useRef, useEffect } from 'react';
 
@@ -23,6 +23,7 @@ interface SettingsModalProps {
 }
 
 const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
+  const { user: firebaseUser } = useFirebaseAuth();
   const [activeTab, setActiveTab] = useState<
     'general' | 'profile' | 'data' | 'about'
   >('general');
@@ -30,8 +31,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
   const [languageSearch, setLanguageSearch] = useState('');
   const languageMenuRef = useRef<HTMLDivElement>(null);
   const modalContentRef = useRef<HTMLDivElement>(null);
-  const { user } = useUser();
-  const { signOut } = useClerk();
   const { detectedLang, setDetectedLang } = useAppContext() as any;
 
   const languages: Language[] = [
@@ -167,17 +166,21 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
       )
     ) {
       try {
-        await signOut({ redirectUrl: '/' });
-        toast.success('Account deleted successfully');
+        window.location.href = '/';
+        toast.success('Account logged out');
       } catch (error) {
-        toast.error('Failed to delete account');
+        toast.error('Failed to sign out');
       }
     }
   };
 
-  const handleLogoutAllDevices = () => {
-    signOut({ redirectUrl: '/' });
-    toast.success('Logged out from all devices');
+  const handleLogoutAllDevices = async () => {
+    try {
+      window.location.href = '/';
+      toast.success('Logged out from all devices');
+    } catch (error) {
+      toast.error('Failed to sign out');
+    }
   };
 
   return (
@@ -186,7 +189,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
         ref={modalContentRef}
         className="bg-[#09090b] rounded-2xl max-w-2xl w-full max-h-[90vh] border border-white/10"
       >
-        {/* Header */}
         <div className="sticky top-0 flex items-center justify-between px-4 py-2">
           <h2 className="text-2xl font-bold font-head text-white">
             {getTranslation(detectedLang, 'settings')}
@@ -201,7 +203,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
         </div>
 
         <div className="flex h-full">
-          {/* Sidebar Tabs */}
           <div className="px-2 md:w-48 md:p-4 flex flex-col gap-2">
             <button
               onClick={() => setActiveTab('general')}
@@ -225,9 +226,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                   : 'text-white/60 hover:bg-gray-500/10'
               }`}
             >
-              {user?.imageUrl ? (
+              {firebaseUser?.photoURL ? (
                 <Image
-                  src={user.imageUrl}
+                  src={firebaseUser.photoURL}
                   alt="User profile"
                   width={24}
                   height={24}
@@ -270,9 +271,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
             </button>
           </div>
 
-          {/* Content */}
           <div className="flex-1 p-6 w-full max-h-[68vh] overflow-y-auto">
-            {/* General Tab */}
             {activeTab === 'general' && (
               <div className="space-y-4">
                 <h3 className="text-md md:text-lg font-head font-semibold text-white mb-4">
@@ -336,9 +335,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                 </h3>
 
                 <div className="flex items-center gap-4">
-                  {user?.imageUrl && (
+                  {firebaseUser?.photoURL && (
                     <Image
-                      src={user.imageUrl}
+                      src={firebaseUser.photoURL}
                       alt="User profile"
                       width={64}
                       height={64}
@@ -348,10 +347,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                   <div>
                     <p className="text-xs md:text-sm text-white/60"></p>
                     <p className="text-md md:text-lg text-white font-head font-medium">
-                      {user?.fullName || 'N/A'}
+                      {firebaseUser?.displayName || 'N/A'}
                     </p>
                     <p className="text-xs md:text-sm text-white/60">
-                      {user?.primaryEmailAddress?.emailAddress || 'No email'}
+                      {firebaseUser?.email || 'No email'}
                     </p>
                   </div>
                 </div>
@@ -378,7 +377,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                     </button>
                   </div>
 
-                  {/* Language Dropdown */}
                   {isLanguageOpen && (
                     <div
                       ref={languageMenuRef}
@@ -478,7 +476,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
               </div>
             )}
 
-            {/* Data Tab */}
             {activeTab === 'data' && (
               <div className="space-y-6">
                 <h3 className=" text-lg md:text-xl font-head font-semibold text-white mb-4">
@@ -529,7 +526,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
               </div>
             )}
 
-            {/* About Tab */}
             {activeTab === 'about' && (
               <div className="space-y-6">
                 <h3 className="text-md md:text-lg font-semibold font-head text-white mb-4">
