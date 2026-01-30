@@ -1,7 +1,7 @@
-# 🎙️ OMEGA - AI Chat Application
+# 🎭 OMEGA - AI Chat Application
 
 > **Advanced AI Chat with Real-Time Streaming, Voice Control & Barge-In Support**
-
+ 
 [![Next.js](https://img.shields.io/badge/Next.js-14+-000000?style=flat-square&logo=next.js)](https://nextjs.org)
 [![React](https://img.shields.io/badge/React-18+-61DAFB?style=flat-square&logo=react)](https://react.dev)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5+-3178C6?style=flat-square&logo=typescript)](https://www.typescriptlang.org)
